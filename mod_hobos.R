@@ -33,7 +33,7 @@ HOBO_UI <- function(id) {
                  strong(h4("2. PROCESS/REVIEW HOBO DATA:")),
                  br(),
                  uiOutput(ns("process.UI")), ### Process Button ####
-                 uiOutput(ns("text_process_status"))
+                 uiOutput(ns("text_process_status")) %>% withSpinner()
           ),
           column(4,
                  strong(h4("3. IMPORT HOBO DATA:")),
@@ -46,7 +46,7 @@ HOBO_UI <- function(id) {
           column(12,
             tabsetPanel(
               tabPanel("DATA PLOT",
-                       plotOutput(ns("plot"), width = "100%", height = "500px"), 
+                       plotOutput(ns("plot"), width = "100%", height = "500px") %>% withSpinner(), 
                        uiOutput(ns("var2.UI"))### PLOT PAGE ####
               ),
               tabPanel("TABULAR HOBO DATA PREVIEW",  ### DATA PREVEIW PAGE ####
@@ -134,7 +134,7 @@ output$file.UI <- renderUI({
                       selected = "")
   })   
 well_file <-   reactive({
-  length(grep(input$file, pattern = "(MSYW_).*\\.txt$")) #### LEFT OFF HERE 
+  length(grep(input$file, pattern = "(SYW177_).*\\.txt$")) #### LEFT OFF HERE 
 })
    
 ### Stage UI ####
@@ -302,7 +302,7 @@ observeEvent(input$import, {
 
 ### Text Outputs ####
 output$file_selection <- renderText({file_selected()})
-output$text_process_status <- renderText({process_status()})
+output$text_process_status <- renderText({process_status()}) 
 output$text_import_status <- renderText({
   req(try(import_status()))
   import_status()

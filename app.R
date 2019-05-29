@@ -19,10 +19,10 @@ ipak <- function(pkg){
 ### NOTE - Shiny must be installed and loaded in the LaunchAppGitHub.R script - any other packages requred should be listed below
 
 packages <- c("RODBC", "DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT",
-              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl")
+              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders")
 ipak(packages) 
 
-config <- read_excel(paste0(getwd(),"/TribToolsConfig.xlsx"))
+config <- read_excel(paste0("W:/WatershedJAH/EQStaff/WQDatabase/R-Shared/Code/ShinyApps/TribTools/TribToolsConfig.xlsx"))
 config <- as.character(config$ConfigValue)
 ### Set db with Discharge and Rating Data ####
 db <- config[3]

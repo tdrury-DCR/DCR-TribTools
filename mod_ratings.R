@@ -48,6 +48,7 @@ RATINGS_UI <- function(id) {
           textInput(ns("drop_measurement"), "Remove Measurement(s) (Separate multiple with commas):"),
           br(),
           uiOutput(ns("plot1_ui")),
+          uiOutput(ns("axis_ui")),
           br(),
           em("NLS OUTPUT:"),
           uiOutput(ns("datatext_ui"))
@@ -170,6 +171,11 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
     }
   })
   
+  
+  axes <- reactive({
+    input$axis
+  })
+  
   ### Make Rating ####
   # Run Model Button - Will only be shown when a data is prepared successfully
   output$calc_rating.UI <- renderUI({
@@ -186,7 +192,8 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
     if(!is.null(offset_ft())){
       MAKE_RATING(tbl_discharges = df_discharges,
                   tbl_ratings = df_ratings, 
-                  loc = input$site, 
+                  loc = input$site,
+                  axes = axes(),
                   offset1 = offset_ft(), 
                   offset2 = offset_ft(), 
                   offset3 = offset_ft(), 
@@ -197,6 +204,11 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
       stop("An offset must be provided to calculate rating!")
     }
   })
+  
+# Axis UI - only show options for 1 Parameter plot
+  output$axis_ui <- renderUI({
+      checkboxInput(ns("axis"), "Log Scale Axes", value = F)
+  })  
   
 observeEvent(input$calc_rating,{
   plot1_value$type <- "b"
@@ -213,16 +225,16 @@ observeEvent(input$site,{
   output$plot1_ui <- renderUI({
     req(input$site != "Choose Location")
       if(as.character(plot1_value$type) == "a"){
-      plotlyOutput(ns("plot1a"), width = "100%", height = "500px")
+      plotlyOutput(ns("plot1a"), width = "100%", height = "500px") %>% withSpinner()
       } else {
-      plotlyOutput(ns("plot1b"), width = "100%", height = "500px")
+      plotlyOutput(ns("plot1b"), width = "100%", height = "500px") %>% withSpinner()
       }
   })
   
   # Plot 1a shows first - just the measurements
   output$plot1a <- renderPlotly({plot_measurements()})
   # Plot 1b replaces plot 1a when a rating is made
-  output$plot1b <- renderPlotly({p_rating()})
+  output$plot1b <- renderPlotly({p_rating()}) 
 
   output$datatext_ui <- renderUI({
     req(try(dfs()))

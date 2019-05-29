@@ -55,7 +55,7 @@
 # offset3 <- 0
 #_________________________________________________________________________________________________________________________________
 ### NEW RATING FROM MEASUREMENTS ####
-MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, drop_meas = NULL, break1 = NULL, offset2 =  NULL, break2 = NULL, offset3 = NULL){
+MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_meas = NULL, break1 = NULL, offset2 =  NULL, break2 = NULL, offset3 = NULL){
 
 # tbl_measurements <- data  
 quality <- c("Fair", "Good", "Excellent", NA)
@@ -368,9 +368,20 @@ p <- ggplot() +
   geom_point(data = gaugings, aes(x=discharge, y=stage, text = paste("Meas.No:", num, "<br>","Stage:", stage, "<br>","Discharge:",discharge,"<br>","Quality:", Measurement_Rated))) +
   geom_line(data = df_Q, aes(Q,stage), color = "red") +
   geom_line(data = df_Q, aes(lower,stage), color = "blue4", linetype = 3) +
-  geom_line(data = df_Q, aes(upper,stage), color = "blue4", linetype = 3) +
-  scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
-  scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) +
+  geom_line(data = df_Q, aes(upper,stage), color = "blue4", linetype = 3)
+
+# Log Scale and Y-axis start at zero
+if(axes == TRUE){
+  p <- p +
+    scale_x_log10(name = "Discharge (cfs)",limits = c(0.1,NA)) +
+    scale_y_log10(name = "Stage (ft)")   
+  } else {
+    p <- p +
+      scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
+      scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) 
+  }
+
+p <- p +
   ggtitle(title) +
   theme_light() +
   theme(legend.position = "none",

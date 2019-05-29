@@ -33,9 +33,10 @@
 # library(odbc)
 # library(RODBC)
 # library(DBI)
-# 
+# library(readxl)
+#
 # #### Config file
-# config <- read_excel(paste0(getwd(),"/Hobo_Rating_Configs.xlsx"))
+# config <- read_excel(paste0("W:/WatershedJAH/EQStaff/WQDatabase/R-Shared/Code/ShinyApps/TribTools/TribToolsConfig.xlsx"))
 # config <- as.character(config$ConfigValue)
 
 #### HOBO TOOL Funtion Args
@@ -48,7 +49,7 @@
 
 ### NOTE: After processing, raw data (txt) and .hobo files will get moved to the appropriate location file
 
-#Set user info
+# #Set user info
 # user <-  Sys.getenv("USERNAME")
 # userdata <- readxl::read_xlsx(path = config[10])
 # username <- paste(userdata$FirstName[userdata$Username %in% user],userdata$LastName[userdata$Username %in% user],sep = " ")
@@ -182,8 +183,8 @@ return(dfs)
 
 # pd <- dfs[[1]] # baro
 # var2 <- NULL
-# df_prior <- NULL #dfs[[3]] # baro_prior
-# df_baro <- df_HOBO
+# df_prior <- baro_prior
+# df_baro <- dfs[[1]]
 
 PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
 
@@ -206,7 +207,7 @@ if(is.null(df_prior)){
   prior <-  TRUE
 }
 
-if(loc == "MSYW"){
+if(loc == "SYW177"){
     title <- paste0("Groundwater Level and Temperature from HOBO\n At Location ", loc)
     ylab <- "Groundwater Level (ft below ground surface)"
     y1lim <- max(pd$Water_Level_ft)
@@ -222,8 +223,8 @@ if(loc == "MSYW"){
     y1lim <- max(pd$Logger_psi)
     y1data <- pd$Logger_psi
     y1prior <- df_prior$Logger_psi
-    y1color <- "Water Pressure (psi)"
-    y1prior_col <- "Water Pressure (psi)"
+    y1color <- "Air Pressure (psi)"
+    y1prior_col <- "Air Pressure (psi)"
     y2col <- "Air Temperature (C)"
     y2prior_col <- "Air Temperature (C) - prior"
 }
@@ -248,14 +249,14 @@ plot  <- ggplot() +
             # text = paste("Date-Time: ", df_prior$DateTimeUTC, "<br>", "Air Pressure (psi): ", df_prior$Logger_psi))) + #, size = 1) +
   geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
   }
-if(loc == "MSYW"){
+if(loc == "SYW177"){
   plot <- plot +
   scale_y_continuous(breaks = pretty_breaks(),limits = c(1.2 * y1lim, NA), trans = scales::reverse_trans(),
-                     sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Air Temperature (C)"))
+                     sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Water Temperature (C)"))
 } else {
   plot <- plot +
     scale_y_continuous(breaks = pretty_breaks(),limits = c(NA, 1.2 * y1lim),
-                       sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Water Temperature (C)"))
+                       sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Air Temperature (C)"))
 }
 plot <- plot +
   scale_x_datetime(breaks = pretty_breaks(n=12)) + 
@@ -270,12 +271,12 @@ plot <- plot +
         axis.title.x = element_text(angle = 0, face = "bold", color = "black"),
         axis.title.y = element_text(angle = 90, face = "bold", color = "black"))
  # plot <- plotly::ggplotly(plot, tooltip = c("text"))
-  return(plot)
+ return(plot)
 }
 # 
 # plot <- PREVIEW_BARO(df_baro = dfs[[1]], df_prior = dfs[[3]], var2 = NULL)
 # plot
-# # 
+# #
 # df_baro <- dfs[[1]]
 # df_prior <-  dfs[[3]]
 
@@ -392,7 +393,7 @@ df2$raw_stage <- (df2$Logger_psi - df2$Logger_psi_baro) / 0.43352750192825
 last_stage <- df2$raw_stage[df2$DateTimeUTC == end_time]
 
 ### Calculate the stage offset to be applied to each raw stage (stage is a function argument)
-if(loc == "MSYW"){
+if(loc == "SYW177"){
   offset <-  26.90625 - stage -  last_stage
   } else {
   offset <- stage - last_stage
@@ -402,13 +403,13 @@ df2$Stage_ft <- round(df2$raw_stage + offset, digits = 3)
 
 ### Source the function to calculate discharges
 source("HOBO_calcQ.R")
-if(loc == "MSYW"){
-  ### Well depth from casing top to bottom = 26.90625, stick-up height = 2.2 ft 
+if(loc == "SYW177"){
+  ### Well depth from casing top to bottom = 26.90625, stick-up height (2.2 + WLM calibration adjustment) = 2.21 ft 
   hobo_tbl <- "tbl_HOBO_WELLS"
   df_HOBO <- df2 %>% 
   mutate("RatingFlag" = NA,
          "Discharge_cfs" = NA,
-         "Water_Level_ft" = round(26.90625 - 2.2 - Stage_ft, 2)) # Water level below ground surface
+         "Water_Level_ft" = round(26.90625 - 2.21 - Stage_ft, 2)) # Water level below ground surface
   print(head(hobo_tbl))
   } else {
   ### Calcualte all discharges and save df2 to a new df with discharge info
@@ -632,7 +633,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, wl_file){
   loc <- loc[,1]
   file <- paste0(updir,"/", wl_file)
   hobo_file <- str_replace(wl_file, "txt", "hobo")
-  if(loc == "MSYW"){
+  if(loc == "SYW177"){
     hobo_tbl <- "tbl_HOBO_WELLS"
   }
   ### Import the data to the database - Need to use RODBC methods here.
@@ -663,5 +664,6 @@ IMPORT_HOBO <- function(df_hobo, df_flags, wl_file){
   print(paste0("HOBO Data finished importing at ", Sys.time()))
   return("Import Successful")
 }
+
 
 
