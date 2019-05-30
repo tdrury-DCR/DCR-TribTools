@@ -45,7 +45,7 @@
 # tbl_ratings <- dbReadTable(con,"tblRatings")
 # locs <- unique(tbl_discharges$Location)
 # locs # Look at the locations
-# loc <- locs[9] # Pick a location
+# loc <- locs[4] # Pick a location
 # ratingNo <-  1.01
 # drop_meas <- NULL
 # offset1 <- 0.75
@@ -68,9 +68,12 @@ data1 <- tbl_discharges %>%
   mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE)) %>%
   filter(MeasurementNumber > floor(max(MeasurementNumber, na.rm = TRUE)), MeasurementNumber < ceiling(max(MeasurementNumber, na.rm = TRUE)))
 
+data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
+
 if(!is.null(drop_meas)){
   data1 <- filter(data1, !MeasurementNumber %in% drop_meas)
 }
+
 
 # x <- str_split(drop_meas, ",") %>%
 #   lapply(function(x) as.numeric(x))
@@ -365,7 +368,12 @@ title <- paste0("STAGE-DISCHARGE RATING CURVE FOR ", loc)
 
 
 p <- ggplot() +
-  geom_point(data = gaugings, aes(x=discharge, y=stage, text = paste("Meas.No:", num, "<br>","Stage:", stage, "<br>","Discharge:",discharge,"<br>","Quality:", Measurement_Rated))) +
+  geom_point(data = gaugings, aes(x=discharge, y=stage, 
+                                  text = paste("Meas.No:", num, "<br>",
+                                               "Stage:", stage, "<br>",
+                                               "Discharge:",discharge,"<br>",
+                                               "Date:", as_date(DateTimeStart),"<br>",
+                                               "Quality:", Measurement_Rated))) +
   geom_line(data = df_Q, aes(Q,stage), color = "red") +
   geom_line(data = df_Q, aes(lower,stage), color = "blue4", linetype = 3) +
   geom_line(data = df_Q, aes(upper,stage), color = "blue4", linetype = 3)
@@ -425,25 +433,29 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
     filter(Location == loc) %>%
     dplyr::select(c(2,4:11)) %>%
     mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE))
+  
+  data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
 
-    data1$RatingNumber <- as.factor(data1$RatingNumber)
+  data1$RatingNumber <- as.factor(data1$RatingNumber)
   
 
   xmin <- 0
   xmax <- ceiling(max(data1$Discharge_cfs)+(0.1 * max(data1$Discharge_cfs)))
   ymin <- max(c(min(data1$Stage_ft)) - 0.25,0)
   ymax <- max(data1$Stage_ft) + 0.25
-  cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue")
+  cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
   title <- paste0("DISCHARGE MEASUREMENTS AT ", loc)
   p <- ggplot() +
     geom_point(data = data1, aes(x=Discharge_cfs, y= Stage_ft, shape = RatingNumber, color = Measurement_Rated,
                                 text = paste("Meas.No:", MeasurementNumber, "<br>",
                                              "Stage:", Stage_ft, "<br>",
                                              "Discharge:", Discharge_cfs,"<br>",
+                                             "Date:", as_date(DateTimeStart),"<br>",
                                              "Quality:", Measurement_Rated))) + 
     scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
     scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) +
     scale_color_manual(values = cols) +
+    scale_shape_identity(name = "Measurement Quality\n Measurment#") +
     ggtitle(title) +
     theme_light() +
     theme(legend.position = "bottom",
@@ -477,6 +489,8 @@ rating <- tbl_ratings[tbl_ratings$MWRA_Loc == substrRight(loc, 4) & tbl_ratings$
     mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE)) %>% 
     filter(MeasurementNumber > floor(max(MeasurementNumber, na.rm = TRUE)), MeasurementNumber < ceiling(max(MeasurementNumber, na.rm = TRUE)))
 
+  data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
+  
   ### Convert the rating number to factor (for plotting)  
   data1$RatingNumber <- as.factor(data1$RatingNumber)
 
@@ -584,16 +598,20 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   xmax <- ceiling(max(data1$Discharge_cfs)+(0.1 * max(data1$Discharge_cfs)))
   ymin <- max(c(min(data1$Stage_ft)) - 0.25,0)
   ymax <- max(data1$Stage_ft) + 0.25
-  cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue")
+  cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
   title <- paste0("RATING # ", ratingNo," AT ", loc)
   p <- ggplot() +
     geom_point(data = data1,aes(x=Discharge_cfs, y= Stage_ft, shape = RatingNumber, color = Measurement_Rated,
-                                text = paste("Meas.No:", MeasurementNumber, "<br>","Stage:", Stage_ft, "<br>","Discharge:",Discharge_cfs,"<br>","Quality:", Measurement_Rated))) + 
+                                text = paste("Meas.No:", MeasurementNumber, "<br>",
+                                             "Stage:", Stage_ft, "<br>",
+                                             "Discharge:",Discharge_cfs,"<br>",
+                                             "Date:", as_date(DateTimeStart),"<br>",
+                                             "Quality:", Measurement_Rated))) + 
     geom_path(data = df_Q, aes(x = Q, stage), color = "red") +
     scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
     scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) +
     scale_color_manual(values = cols) +
-    scale_shape_identity() +
+    scale_shape_identity(name = "Measurement Quality\n Measurment#") +
     ggtitle(title) +
     theme_light() +
     theme(legend.position = "bottom",
