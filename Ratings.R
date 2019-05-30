@@ -92,8 +92,8 @@ substrRight <- function(x, n){
 
 # Q = C*(h-a)^n, where C is a constant, h is head, a is an offset (pzf) and n is an exponent
 
-gaugings <- data1[,c("Stage_ft","Discharge_cfs","MeasurementNumber","Measurement_Rated")]
-names(gaugings) <- c("stage", "discharge","num","Measurement_Rated")
+gaugings <- data1[,c("Stage_ft","Discharge_cfs","MeasurementNumber","Measurement_Rated", "DateTimeStart")]
+names(gaugings) <- c("stage", "discharge","num","Measurement_Rated", "DateTimeStart")
 
 ### Assign parts for rating ####
 if(break2 > 0){
@@ -365,10 +365,10 @@ ymin <- minstage
 ymax <- maxstage
 stages <- seq(ymin,ymax,by = 0.02)
 title <- paste0("STAGE-DISCHARGE RATING CURVE FOR ", loc)
-
+cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
 
 p <- ggplot() +
-  geom_point(data = gaugings, aes(x=discharge, y=stage, 
+  geom_point(data = gaugings, aes(x=discharge, y=stage, color = Measurement_Rated,
                                   text = paste("Meas.No:", num, "<br>",
                                                "Stage:", stage, "<br>",
                                                "Discharge:",discharge,"<br>",
@@ -376,7 +376,8 @@ p <- ggplot() +
                                                "Quality:", Measurement_Rated))) +
   geom_line(data = df_Q, aes(Q,stage), color = "red") +
   geom_line(data = df_Q, aes(lower,stage), color = "blue4", linetype = 3) +
-  geom_line(data = df_Q, aes(upper,stage), color = "blue4", linetype = 3)
+  geom_line(data = df_Q, aes(upper,stage), color = "blue4", linetype = 3) +
+  scale_color_manual(values = cols)
 
 # Log Scale and Y-axis start at zero
 if(axes == TRUE){
@@ -392,7 +393,7 @@ if(axes == TRUE){
 p <- p +
   ggtitle(title) +
   theme_light() +
-  theme(legend.position = "none",
+  theme(legend.position = "bottom",
         legend.title = element_blank(),
         axis.title.y = element_text(vjust = 2, face = "bold"),
         axis.title.x = element_text(vjust = 2, face = "bold"),
@@ -413,7 +414,8 @@ p <- p +
     }
          
 # p
-p_rating <- plotly::ggplotly(p, tooltip = c("text"))
+p_rating <- plotly::ggplotly(p, tooltip = c("text")) %>% 
+  layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
 # p_rating
 # print(r)
 dfs <- list(plot = p_rating,
@@ -435,7 +437,6 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
     mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE))
   
   data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
-
   data1$RatingNumber <- as.factor(data1$RatingNumber)
   
 
@@ -446,7 +447,7 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
   title <- paste0("DISCHARGE MEASUREMENTS AT ", loc)
   p <- ggplot() +
-    geom_point(data = data1, aes(x=Discharge_cfs, y= Stage_ft, shape = RatingNumber, color = Measurement_Rated,
+    geom_point(data = data1, aes(x=Discharge_cfs, y= Stage_ft, color = Measurement_Rated,
                                 text = paste("Meas.No:", MeasurementNumber, "<br>",
                                              "Stage:", Stage_ft, "<br>",
                                              "Discharge:", Discharge_cfs,"<br>",
@@ -455,16 +456,17 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
     scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
     scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) +
     scale_color_manual(values = cols) +
-    scale_shape_identity(name = "Measurement Quality\n Measurment#") +
+    # scale_shape_identity() +
     ggtitle(title) +
     theme_light() +
     theme(legend.position = "bottom",
-          legend.title = element_text(face = "bold"),
+          legend.title = element_blank(),
           axis.title.y = element_text(vjust = 2, face = "bold"),
           axis.title.x = element_text(vjust = 2, face = "bold"),
           plot.title = element_text(hjust = 0.5, face = "bold"))
   
-  p_discharges <- plotly::ggplotly(p, tooltip = c("text"))
+  p_discharges <- plotly::ggplotly(p, tooltip = c("text")) %>% 
+    layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
   # p_discharges
   
 }
@@ -601,7 +603,7 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
   title <- paste0("RATING # ", ratingNo," AT ", loc)
   p <- ggplot() +
-    geom_point(data = data1,aes(x=Discharge_cfs, y= Stage_ft, shape = RatingNumber, color = Measurement_Rated,
+    geom_point(data = data1,aes(x=Discharge_cfs, y= Stage_ft, color = Measurement_Rated,
                                 text = paste("Meas.No:", MeasurementNumber, "<br>",
                                              "Stage:", Stage_ft, "<br>",
                                              "Discharge:",Discharge_cfs,"<br>",
@@ -611,11 +613,11 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
     scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
     scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) +
     scale_color_manual(values = cols) +
-    scale_shape_identity(name = "Measurement Quality\n Measurment#") +
+    # scale_shape_identity() +
     ggtitle(title) +
     theme_light() +
     theme(legend.position = "bottom",
-          legend.title = element_text(face = "bold"),
+          legend.title = element_blank(),
           axis.title.y = element_text(vjust = 2, face = "bold"),
           axis.title.x = element_text(vjust = 2, face = "bold"),
           plot.title = element_text(hjust = 0.5, face = "bold")) 
@@ -646,7 +648,8 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   }
   
   
-  p_rating <- plotly::ggplotly(p, tooltip = c("text")) 
+  p_rating <- plotly::ggplotly(p, tooltip = c("text")) %>% 
+    layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
   # p_rating
 }
   

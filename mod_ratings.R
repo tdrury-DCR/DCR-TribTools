@@ -196,7 +196,7 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
                   axes = axes(),
                   offset1 = offset_ft(), 
                   offset2 = offset_ft(), 
-                  offset3 = offset_ft(), 
+                  offset3 = offset_ft(),
                   break1 = break1(), 
                   break2 = break2(), 
                   drop_meas = drop_meas())
