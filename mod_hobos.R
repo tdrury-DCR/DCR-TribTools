@@ -313,12 +313,20 @@ observeEvent(input$refresh, {
 })
 
 #### TABLE OUTPUTS ####
-
+# Sys.setenv(TZ='UTC')
+# Sys.getenv()
 ### Processed data Table - Only make table if processing is successful
 output$table_data_preview <- renderDataTable({
   req(try(df()))
-  datatable(df(), options = list(pageLength = 50)) %>% 
-    formatDate(columns = "DateTimeUTC", method = 'toLocaleString')
+  datatable(df(), 
+            colnames = c("ID", "Location", "Date-Time ET", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
+            options = list(pageLength = 50)) %>% 
+    formatDate(
+      columns = "DateTimeUTC",
+      method = 'toLocaleString')
+      # method = 'toISOString')
+    #   params = list("se", list(timeZone = "UTC", hour12 = FALSE))
+    # )
 })
 
 ### Processed Flag Table - Only make table if processing is successful

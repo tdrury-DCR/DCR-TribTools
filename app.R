@@ -21,9 +21,8 @@ ipak <- function(pkg){
 packages <- c("RODBC", "DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT",
               "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders")
 ipak(packages) 
-
-config <- read_excel(paste0("W:/WatershedJAH/EQStaff/WQDatabase/R-Shared/Code/ShinyApps/TribTools/TribToolsConfig.xlsx"))
-config <- as.character(config$ConfigValue)
+### Set environment timezone
+# Sys.setenv(TZ='UTC')
 ### Set db with Discharge and Rating Data ####
 db <- config[3]
 ### Connect to Database
