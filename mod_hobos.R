@@ -318,12 +318,14 @@ observeEvent(input$refresh, {
 ### Processed data Table - Only make table if processing is successful
 output$table_data_preview <- renderDataTable({
   req(try(df()))
-  datatable(df(), 
-            colnames = c("ID", "Location", "Date-Time ET", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
-            options = list(pageLength = 50)) %>% 
-    formatDate(
-      columns = "DateTimeUTC",
-      method = 'toLocaleString')
+  dt <- df()
+  dt$DateTimeUTC <- as.character(format(dt$DateTimeUTC, format = "%Y-%m-%d %H:%M"))
+  datatable(dt, 
+            colnames = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
+            options = list(pageLength = 50)) #%>% 
+    # formatDate(
+    #   columns = "DateTimeUTC",
+    #   method = 'toLocaleString')
       # method = 'toISOString')
     #   params = list("se", list(timeZone = "UTC", hour12 = FALSE))
     # )
