@@ -36,8 +36,7 @@
 # library(readxl)
 #
 # #### Config file
-# config <- read_excel(paste0("W:/WatershedJAH/EQStaff/WQDatabase/R-Shared/Code/ShinyApps/TribTools/TribToolsConfig.xlsx"))
-# config <- as.character(config$ConfigValue)
+# LOAD THIS FROM LAUNCH SCRIPT
 
 #### HOBO TOOL Funtion Args
 # hobo_path <- config[1]
