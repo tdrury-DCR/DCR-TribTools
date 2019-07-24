@@ -408,7 +408,7 @@ if(loc == "SYW177"){
   df_HOBO <- df2 %>% 
   mutate("RatingFlag" = NA,
          "Discharge_cfs" = NA,
-         "Water_Level_ft" = round(26.90625 - 2.01 - Stage_ft, 2)) # Water level below ground surface
+         "Water_Level_ft" = round(26.90625 - 2.21 - Stage_ft, 2)) # Water level below ground surface
   print(head(hobo_tbl))
   } else {
   ### Calcualte all discharges and save df2 to a new df with discharge info
