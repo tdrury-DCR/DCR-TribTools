@@ -31,7 +31,8 @@ RATINGS_UI <- function(id) {
     fluidRow( 
       column(4, 
         uiOutput(ns("site_ui")),   
-        uiOutput(ns("calc_rating.UI"))
+        numericInput(ns("rating1"),"Select/Create Rating #:", min = 1.01, step = 0.01, value = 0, width = "200px")
+
       ),
       column(4,
         numericInput(ns("offset"),"Enter offset (ft) (Point of Zero Flow [PZF]", min = 0, max = 15, step = 0.01, value = 0, width = "400px"),
@@ -39,7 +40,7 @@ RATINGS_UI <- function(id) {
         numericInput(ns("break2"),"Enter second stage breakpoint (for 3 part rating only)", min = 0, max = 15, step = 0.01, value = 0, width = "400px")
       ),
       column(3,
-        numericInput(ns("rating1"),"Select/Create Rating #:", min = 1.01, step = 0.01, value = 0, width = "200px")
+        uiOutput(ns("calc_rating.UI"))     
       )
     ),
     fluidRow(
@@ -183,8 +184,9 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
                  label = "CALCULATE RATING",
                  width = '200px')
   })
-
   
+
+   
   plot1_value <- reactiveValues(type =  "a")
 
   ### Run the rating function #### This generates a plot [1] and a table [2]
@@ -255,7 +257,8 @@ observeEvent(input$site,{
     if(parts() == 1){
     l <- list(`RATING EQUATION:` =  data()$eq1,
            `COEFFICIENT STATS:` = data()$t_sum1,
-           `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int1
+           `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int1,
+           `DROPPED MEASUREMENTS` = drop_meas()
       )
         print(l, quote = FALSE)
     } else if(parts() == 2){
@@ -264,7 +267,8 @@ observeEvent(input$site,{
           `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int1,
           `RATING EQUATION (Part 2):` = data()$eq2,
           `COEFFICIENT STATS:` = data()$t_sum2,
-          `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int2
+          `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int2,
+          `DROPPED MEASUREMENTS` = drop_meas()
       )
      print(l, quote = FALSE)
     } else {
@@ -276,7 +280,8 @@ observeEvent(input$site,{
                 `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int2,
                 `RATING EQUATION (Part 3):` = data()$eq3,
                 `COEFFICIENT STATS:` = data()$t_sum3,
-                `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int3
+                `COEFFICIENT 95% CONFIDENCE INTERVALS:` = data()$conf_int3,
+                `DROPPED MEASUREMENTS` = drop_meas()
       )
       print(l, quote = FALSE)
     }
@@ -304,7 +309,7 @@ plot2 <- eventReactive(c(input$site,input$rating2),{
   })
   current_rating <- reactive({
     req(site_ratings())
-    max(site_ratings(), na.rm = TRUE)
+    df_ratings$RatingNum[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$Current == TRUE]
   })  
   
   # Site UI

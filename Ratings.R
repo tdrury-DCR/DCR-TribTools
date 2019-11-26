@@ -4,7 +4,7 @@
 #     Written by: Dan Crocker
 #     Last Updated: Summer, 2018
 ###____________________________________________________________________________________
-# 
+
 # library(tidyverse)
 # library(RODBC)
 # library(odbc)
@@ -39,34 +39,60 @@
 #                  .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
 #                                             paste0("DBQ=", db), "Uid=Admin;Pwd=;", sep = ";"),
 #                  timezone = "America/New_York")
-# # 
+# #
 # # ### FUNCTION ARGS ####
 # tbl_discharges <- dbReadTable(con,"tblDischargeMeasurements")
 # tbl_ratings <- dbReadTable(con,"tblRatings")
+# 
+# dbDisconnect(con)
+# rm(con)
+# 
 # locs <- unique(tbl_discharges$Location)
 # locs # Look at the locations
-# loc <- locs[4] # Pick a location
-# ratingNo <-  1.01
+# loc <- locs[1] # Pick a location
+# ratingNo <-  1.02
 # drop_meas <- NULL
-# offset1 <- 0.75
+# offset1 <- 0.213
 # break1 <- 0
 # offset2 <- 0
 # break2 <- 0
 # offset3 <- 0
+# new_rating <- 1.02
 #_________________________________________________________________________________________________________________________________
 ### NEW RATING FROM MEASUREMENTS ####
-MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_meas = NULL, break1 = NULL, offset2 =  NULL, break2 = NULL, offset3 = NULL){
-
+MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_meas = NULL, break1 = NULL, offset2 =  NULL, break2 = NULL, offset3 = NULL, new_rating = NULL){
+  
+  # A function to pull characters from the right side of a string
+  substrRight <- function(x, n){
+    substr(x, nchar(x)-n+1, nchar(x))
+  }
 # tbl_measurements <- data  
+  
+  
+tbl_ratings <- tbl_ratings %>% 
+  mutate(RatingDatumOffset = ifelse(is.na(RatingDatumOffset), 0, RatingDatumOffset))
+  
 quality <- c("Fair", "Good", "Excellent", NA)
   
+loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
+
+current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
+active_rating <- current_rating$RatingNum
+
+if(is.null(new_rating)){
+  new_rating <- active_rating + 0.01
+} 
+  
+
+
 ### Filter discharge measurements for location of interest and only the measurements valid for the most recent rating (highest whole number)
 ### Also filter out any poor quality measurements
+
 data1 <- tbl_discharges %>% 
   filter(Location == loc, Measurement_Rated %in% quality) %>%
   dplyr::select(c(2,4:11)) %>%
   mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE)) %>%
-  filter(MeasurementNumber > floor(max(MeasurementNumber, na.rm = TRUE)), MeasurementNumber < ceiling(max(MeasurementNumber, na.rm = TRUE)))
+  filter(RatingNumber > floor(new_rating), RatingNumber <= new_rating)
 
 data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
 
@@ -74,18 +100,18 @@ if(!is.null(drop_meas)){
   data1 <- filter(data1, !MeasurementNumber %in% drop_meas)
 }
 
-
-# x <- str_split(drop_meas, ",") %>%
-#   lapply(function(x) as.numeric(x))
-# as.vector(as.integer(unlist(x)))
-# drop_meas <- unlist(x)
-# drop_meas
-
-# A function to pull characters from the right side of a string
-substrRight <- function(x, n){
-  substr(x, nchar(x)-n+1, nchar(x))
+apply_offset <- function(.x, .y){
+  # correct stage datum to match current rating datum
+  if(.x < new_rating){
+    round(.y + loc_ratings$RatingDatumOffset[loc_ratings$RatingNum == .x],2)
+  } else {
+    .y
+  }
 }
 
+data1 <- data1 %>% 
+  mutate(Stage_ft = map2_dbl(.x = RatingNumber, .y = Stage_ft, apply_offset))
+  
 ###__________________________
 # Develop a rating equation #
 ###__________________________
@@ -637,12 +663,12 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   # Add rating equation(s) and break1 if exists
   if(parts == 2){
     p <- p + geom_hline(yintercept = break1, color = "darkgreen", linetype = 3) +
-      annotate("text", x = 0.75 * xmax, y = break1 - 0.04, label = paste0("Rating Breakpoint 1 (",break1, " ft)"), color ="seagreen")
+      annotate("text", x = 0.75 * xmax, y = break1 - 0.06, label = paste0("Rating Breakpoint 1 (",break1, " ft)"), color ="seagreen")
   } else if(parts == 3){
     p <- p + geom_hline(yintercept = break1, color = "darkgreen", linetype = 3) +
-      annotate("text", x = 0.75 * xmax, y = break1 - 0.04, label = paste0("Rating Breakpoint 1 (",break1, " ft)") , color ="seagreen") +
+      annotate("text", x = 0.75 * xmax, y = break1 - 0.06, label = paste0("Rating Breakpoint 1 (",break1, " ft)") , color ="seagreen") +
       geom_hline(yintercept = break2, color = "darkgreen", linetype = 3) +
-      annotate("text", x = 0.75 * xmax, y = break2 - 0.04, label = paste0("Rating Breakpoint 2 (",break2, " ft)"), color ="seagreen")
+      annotate("text", x = 0.75 * xmax, y = break2 - 0.06, label = paste0("Rating Breakpoint 2 (",break2, " ft)"), color ="seagreen")
   } else {
     p <- p
   }
