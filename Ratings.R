@@ -43,10 +43,10 @@
 # # ### FUNCTION ARGS ####
 # tbl_discharges <- dbReadTable(con,"tblDischargeMeasurements")
 # tbl_ratings <- dbReadTable(con,"tblRatings")
-# 
+# # 
 # dbDisconnect(con)
 # rm(con)
-# 
+
 # locs <- unique(tbl_discharges$Location)
 # locs # Look at the locations
 # loc <- locs[1] # Pick a location
@@ -72,7 +72,7 @@ MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_me
 tbl_ratings <- tbl_ratings %>% 
   mutate(RatingDatumOffset = ifelse(is.na(RatingDatumOffset), 0, RatingDatumOffset))
   
-quality <- c("Fair", "Good", "Excellent", NA)
+quality <- c("Fair" = 70, "Good" = 85, "Excellent" = 100, "Poor" = 0)
   
 loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
 
@@ -83,18 +83,18 @@ if(is.null(new_rating)){
   new_rating <- active_rating + 0.01
 } 
   
-
-
 ### Filter discharge measurements for location of interest and only the measurements valid for the most recent rating (highest whole number)
 ### Also filter out any poor quality measurements
 
 data1 <- tbl_discharges %>% 
-  filter(Location == loc, Measurement_Rated %in% quality) %>%
+  filter(Location == loc) %>%
   dplyr::select(c(2,4:11)) %>%
-  mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE)) %>%
+  mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE),
+         Measurement_Weight = quality[Measurement_Rated]) %>%
   filter(RatingNumber > floor(new_rating), RatingNumber <= new_rating)
 
-data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
+
+data1$Measurement_Weight <- replace_na(data1$Measurement_Weight, 70)
 
 if(!is.null(drop_meas)){
   data1 <- filter(data1, !MeasurementNumber %in% drop_meas)
@@ -112,9 +112,9 @@ apply_offset <- function(.x, .y){
 data1 <- data1 %>% 
   mutate(Stage_ft = map2_dbl(.x = RatingNumber, .y = Stage_ft, apply_offset))
   
-###__________________________
-# Develop a rating equation #
-###__________________________
+########################################################################.
+###                 Develop a rating equation                       ####
+########################################################################.
 
 # Q = C*(h-a)^n, where C is a constant, h is head, a is an offset (pzf) and n is an exponent
 
@@ -134,10 +134,11 @@ r_1part <- function(gaugings, offset1){
 
   stage1 <- gaugings$stage
   discharge1 <- gaugings$discharge
+  weight <- gaugings$Measurement_Weight
 ### Part 1 ####  
   # Fitting the power law
   # Note that the start argument requires a list with initial estimates of the coefficients to be estimated
-  power.nls <- nls(discharge1 ~ C * (stage1 - offset1)^n, data = gaugings, start = list(C = 1, n = 2))
+  power.nls <- nls(discharge1 ~ C * (stage1 - offset1)^n, data = gaugings, start = list(C = 1, n = 2), weights = weight)
   
   ### Generate confidence intervals from regression ###
   conf_int1 <- confint2(object = power.nls, level = 0.95)
@@ -166,14 +167,16 @@ r_2part <- function(gaugings, offset1, break1, offset2){
   
   stage1 <- gaugings1$stage
   discharge1 <- gaugings1$discharge
+  weight1 <- gaugings1$Measurement_Weight
   
   stage2 <- gaugings2$stage
   discharge2 <- gaugings2$discharge
+  weight2 <- gaugings2$Measurement_Weight
   
 ### Part 1 ####  
   # Fitting the power law
   # Note that the start argument requires a list with initial estimates of the coefficients to be estimated
-  power.nls1 <- nls(discharge ~ C * (stage - offset1)^n, data = gaugings, start = list(C = 1, n = 2))
+  power.nls1 <- nls(discharge ~ C * (stage - offset1)^n, data = gaugings, start = list(C = 1, n = 2), weights = weight1)
   
   ### Generate confidence intervals from regression ###
   conf_int1 <- confint2(object = power.nls1, level = 0.95)
@@ -185,7 +188,7 @@ r_2part <- function(gaugings, offset1, break1, offset2){
   eq1 <- paste0("Q = ",C1,"*(h-",a1,")^",n1)
   
 ### Part 2 ####    
-  power.nls2 <- nls(discharge2 ~ C * (stage2 - offset1)^n, data = gaugings2, start = list(C = 1, n = 2))
+  power.nls2 <- nls(discharge2 ~ C * (stage2 - offset1)^n, data = gaugings2, start = list(C = 1, n = 2),weights = weight2)
   
   ### Generate confidence intervals from regression ###
   conf_int2 <- confint2(object = power.nls2, level = 0.95)
@@ -222,17 +225,20 @@ r_3part <- function(gaugings, offset1, break1, offset2, break2, offset3){
 
   stage1 <- gaugings1$stage
   discharge1 <- gaugings1$discharge
+  weight1 <- gaugings1$Measurement_Weight
 
   stage2 <- gaugings2$stage
   discharge2 <- gaugings2$discharge
+  weight2 <- gaugings2$Measurement_Weight
 
   stage3 <- gaugings3$stage
   discharge3 <- gaugings3$discharge
+  weight3 <- gaugings3$Measurement_Weight
 
 ### Part 1 ####
   # Fitting the power law
   # Note that the start argument requires a list with initial estimates of the coefficients to be estimated
-  power.nls1 <- nls(discharge1 ~ C * (stage1 - offset1)^n, data = gaugings1, start = list(C = 1, n = 2))
+  power.nls1 <- nls(discharge1 ~ C * (stage1 - offset1)^n, data = gaugings1, start = list(C = 1, n = 2), weights = weight1)
 
   ### Generate confidence intervals from regression ###
   conf_int1 <- confint2(object = power.nls1, level = 0.95)
@@ -244,7 +250,7 @@ r_3part <- function(gaugings, offset1, break1, offset2, break2, offset3){
   eq1 <- paste0("Q = ",C1,"*(h-",a1,")^",n1)
 
 ### Part 2 ####
-  power.nls2 <- nls(discharge2 ~ C * (stage2 - offset2)^n, data = gaugings2, start = list(C = 1, n = 2))
+  power.nls2 <- nls(discharge2 ~ C * (stage2 - offset2)^n, data = gaugings2, start = list(C = 1, n = 2), weights = weight2)
 
   ### Generate confidence intervals from regression ###
   conf_int2 <- confint2(object = power.nls2, level = 0.95)
@@ -256,7 +262,7 @@ r_3part <- function(gaugings, offset1, break1, offset2, break2, offset3){
   eq2 <- paste0("Q = ",C2,"*(h-",a2,")^",n2)
 
 ### Part 3 ####
-  power.nls3 <- nls(discharge3 ~ C * (stage3 - offset3)^n, data = gaugings3, start = list(C = 1, n = 2))
+  power.nls3 <- nls(discharge3 ~ C * (stage3 - offset3)^n, data = gaugings3, start = list(C = 1, n = 2), weights = weight3)
 
   ### Generate confidence intervals from regression ###
   conf_int3 <- confint2(object = power.nls3, level = 0.95)

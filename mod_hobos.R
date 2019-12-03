@@ -13,7 +13,7 @@ HOBO_UI <- function(id) {
   tagList(
     useShinyjs(),
       div(id = "hobos", ### Set div() for Refresh Button ####
-        title = "Tributary HOBO Data Tool",
+        title = "Tributary HOBO/MAYFLY Data Tool",
         fluidRow(
           column(12,
                  actionButton(ns("refresh"), "REFRESH", align = "left"),  ### Refresh button ####
@@ -24,22 +24,22 @@ HOBO_UI <- function(id) {
         ),
         fluidRow(
           column(4,
-                 strong(h4("1. SELECT A HOBO FILE:")),
+                 strong(h4("1. SELECT A DATA FILE:")),
                  uiOutput(ns("file.UI")), ### File UI ####
                  verbatimTextOutput(ns("file_selection")), ### File selected text ####
                  uiOutput(ns("stage.UI")) ### Stage UI ####
           ),
           column(4,
-                 strong(h4("2. PROCESS/REVIEW HOBO DATA:")),
+                 strong(h4("2. PROCESS/REVIEW DATA:")),
                  br(),
                  uiOutput(ns("process.UI")), ### Process Button ####
                  uiOutput(ns("text_process_status")) %>% withSpinner()
           ),
           column(4,
-                 strong(h4("3. IMPORT HOBO DATA:")),
+                 strong(h4("3. IMPORT DATA:")),
                  br(),
                  uiOutput(ns("import.UI")), ### Import Button ####
-                 uiOutput(ns("text_import_status"))
+                 uiOutput(ns("text_import_status")) %>% withSpinner()
           )
         ),
         fluidRow(### DATA TABSET PANELS
@@ -49,10 +49,10 @@ HOBO_UI <- function(id) {
                        plotOutput(ns("plot"), width = "100%", height = "500px") %>% withSpinner(), 
                        uiOutput(ns("var2.UI"))### PLOT PAGE ####
               ),
-              tabPanel("TABULAR HOBO DATA PREVIEW",  ### DATA PREVEIW PAGE ####
+              tabPanel("TABULAR DATA PREVIEW",  ### DATA PREVEIW PAGE ####
                        dataTableOutput(ns("table_data_preview"))
               ),
-              tabPanel("TABULAR HOBO FLAG DATA PREVIEW", ### FLAG DATA PREVIEW PAGE ####
+              tabPanel("TABULAR FLAG DATA PREVIEW", ### FLAG DATA PREVIEW PAGE ####
                        dataTableOutput(ns("table_flag_preview"))
               )
             )# End Tabset Panel
@@ -66,7 +66,7 @@ HOBO_UI <- function(id) {
 ###         SERVER          ####
 ################################.
         
-HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, hobo_tbl, ImportFlagTable, username){  # Same as rating info - all in Hydro DB
+HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, hobo_tbl, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username){  # Same as rating info - all in Hydro DB
 
 ### Source the HOBO functions ####
   source("ProcessHOBO.R", local = T) ### source Script ####
@@ -76,7 +76,7 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
   ImportStatus <- reactiveVal("")
   
 ### INTRO TEXT #### 
-  output$intro <- renderText({paste0("The HOBO DATA TOOL is designed to facilitate the processing and importing of HOBO Logger Data.\n 
+  output$intro <- renderText({paste0("The HOBO/MAYFLY DATA TOOL is designed to facilitate the processing and importing of HOBO and MAYFLY Logger Data.\n 
                                        All raw text files exported from HOBO Ware should be checked over, corrections made with annotations prior to using this tool. \n
                                        Barometric files associated with water level files need to be imported first so that the compensation data is available to correct \n
                                        the water level data. All files successfully imported will be moved to an archive folder.")
@@ -87,11 +87,14 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
 # filter files to show only barometric files until there are none, and then show the other files     
 # Make the File List
 files <- reactive({
-  all_files  <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.txt$")
-  baro_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+(_BARO_).*\\.txt$")
   
-  if(length(baro_files) > 0){
-      files <- baro_files
+  mayfly_files <- list.files(mayfly_data_dir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.csv$")
+  hobo_files  <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.txt$")
+  barometer_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+(_BARO_).*\\.txt$")
+  all_files <- c(hobo_files, mayfly_files)
+  
+    if(length(barometer_files) > 0){
+      files <- barometer_files
     } else {
       show('stage')
       files <- all_files 
@@ -105,13 +108,26 @@ var2 <- reactive({
 })
   
 ### SET FILE TYPE ####
+# This determines what scripts are run to preview and process/import data
 file_type <- reactive({
-  baro_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "(_BARO_).*\\.txt$")
-  if(length(baro_files) > 0){
-    file_type <- "baro"
+req(input$file)
+x <- input$file
+  if(str_detect(x, pattern = "(_BARO_).*\\.txt$")){
+    "baro" # Barometric hobo file selected
+  } else if (str_detect(x, pattern = "^.{4}_\\d{8}-\\d{8}\\.txt$")) {
+    "hobo" # Regular hobo file selected
   } else {
-    file_type <- "wl"
-  file_type <- file_type
+    "mayfly"
+  }  
+})
+   #str_detect(pattern = "(^.{4}MF_).*\\.csv$") = "mayfly" # Mayfly logger file selected
+
+### Check to see if there are any BARO files to be processed
+baro_files <- reactive({
+  if(any(str_detect(files(), pattern = "(_BARO_).*\\.txt$"))){
+    TRUE
+  } else {
+    FALSE
   }
 })
 
@@ -132,24 +148,34 @@ output$file.UI <- renderUI({
                       label = "1. Choose file to upload:",
                       choices = files(),
                       selected = "")
-  })   
+  }) 
+### Well File ####  
 well_file <-   reactive({
-  length(grep(input$file, pattern = "(SYW177_).*\\.txt$")) #### LEFT OFF HERE 
+  length(grep(input$file, pattern = "(SYW177_).*\\.txt$")) 
 })
    
 ### Stage UI ####
 output$stage.UI <- renderUI({
- req(file_type() == "wl")
+ req(file_type() %in% c("hobo","mayfly"))
  numericInput(inputId = ns("stage"),
               label = "Provide stage (ft) at time of download:", value = 0, min = 0, max = 30, step = 0.01, width = "100%")
               
 })
+  
+var2_choices <- reactive({
+  if (file_type() == "hobo") {
+    c("Discharge", "Temperature")
+  } else if (file_type() == "mayfly") {
+    c("Discharge", "Temperature", "Conductivity")
+  }
+})
+    
 ### Var2 UI ####
 output$var2.UI <- renderUI({
-  req(file_type() == "wl", well_file() == 0)
+  req(file_type() == "hobo", well_file() == 0)
   radioButtons(inputId = ns("var2"),
                label = "Select the secondary Y axis value to plot:", 
-               choices = c("Discharge", "Temperature"),
+               choices = var2_choices(),
                selected = "Discharge", 
                inline = T,
                width = "100%")
@@ -171,35 +197,40 @@ output$process.UI <- renderUI({
   # })  
   
 
-  ### RUN PREVIEW FUNCTION ####
-  plot <- eventReactive(input$process,{
-    req(dfs)
-    if(file_type() == "baro"){
-      PREVIEW_BARO(df(), df_prior(), var2 = NULL)
-    } else {
-      PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())
-    }
-  }
-  )  
-  #### PLOT OUTPUT ####
-  output$plot <- renderPlot({
-    req(try(df()))
-    if(file_type() == "baro" | well_file() == 1){
-      PREVIEW_BARO(df(), df_prior(), var2 = NULL)
-    } else {
-      PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())
-    }
-  })
-  
 ### RUN PROCESS FUNCTION ####
 # Run the function to process the data and return 2 dataframes and path as list
 dfs <- eventReactive(input$process,{
-  if(file_type() == "baro"){
-    PROCESS_BARO(baro_file = input$file)
-    } else {
-    PROCESS_HOBO(wl_file = input$file, stage = input$stage, username = username)
-  }
+  switch(file_type(),
+         "baro" = {PROCESS_BARO(baro_file = input$file)},
+         "hobo" = {PROCESS_HOBO(hobo_file = input$file, stage = input$stage, username = username)},
+         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username)}
+  )
 })
+
+
+### RUN PREVIEW FUNCTION ####
+plot <- eventReactive(input$process,{
+  req(dfs)
+  switch(file_type(),
+         "baro" = {PREVIEW_BARO(df(), df_prior(), var2 = NULL)},
+         "hobo" = {PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())},
+         "mayfly" = {PREVIEW_MAYFLY(df(), df_prior(), df_stage(), var2 = var2())}
+  )
+}
+)  
+
+#### PLOT OUTPUT ####
+output$plot <- renderPlot({
+  req(try(df()))
+  plot()
+  # if(file_type() == "baro" | well_file() == 1){
+  #   PREVIEW_BARO(df(), df_prior(), var2 = NULL)
+  # } else {
+  #   PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())
+  # }
+  })
+  
+
   
   ### Show Import Button ####                 
   observeEvent(input$process, {
@@ -263,11 +294,11 @@ output$import.UI <- renderUI({
 # Import Data - Run import_data function ####
 observeEvent(input$import, {
   out <- tryCatch(
-    if(file_type() == "baro"){
-      IMPORT_BARO(df_baro = df(), baro_file = input$file)
-    } else {
-      IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), wl_file = input$file)
-    },
+    switch(file_type(),
+           "baro" = {IMPORT_BARO(df_baro = df(), baro_file = input$file)},
+           "hobo" = {IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), hobo_file = input$file)},
+           "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), df_flags = df_flags(), mayfly_file = input$file)}
+    ),
     error = function(e) e)
   
   ImportFailed <- any(class(out) == "error")
@@ -313,6 +344,16 @@ observeEvent(input$refresh, {
 })
 
 #### TABLE OUTPUTS ####
+
+dt_colnames <- reactive({
+  switch(file_type(),
+         "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)"),
+         "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
+         "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)", "Conductivity (uS/cm)")
+  )
+})
+
+
 # Sys.setenv(TZ='UTC')
 # Sys.getenv()
 ### Processed data Table - Only make table if processing is successful
@@ -321,7 +362,7 @@ output$table_data_preview <- renderDataTable({
   dt <- df()
   dt$DateTimeUTC <- as.character(format(dt$DateTimeUTC, format = "%Y-%m-%d %H:%M"))
   datatable(dt, 
-            colnames = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
+            colnames = dt_colnames(),
             options = list(pageLength = 50)) #%>% 
     # formatDate(
     #   columns = "DateTimeUTC",

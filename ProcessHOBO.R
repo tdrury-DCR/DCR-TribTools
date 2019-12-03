@@ -316,20 +316,20 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ###
 
 ### List txt files for HOBO downloads to be processed
-# wl_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
-# wl_files ### Show the files
-# wl_file <- wl_files[4] ### Pick a file
+# hobo_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
+# hobo_files ### Show the files
+# hobo_file <- hobo_files[4] ### Pick a file
 # username <- "Dan Crocker"
 # stage <- 0.7 ### Enter stage at time of data download (Numeric entry in Shiny App
 
-PROCESS_HOBO <- function(wl_file, stage, username){
+PROCESS_HOBO <- function(hobo_file, stage, username){
 print(paste0("HOBO Data started processing at ", Sys.time()))
-### Extract the location information from the Plot Title listed in the file
 
-loc <- str_split_fixed(wl_file, "_", n = 2) 
+### Extract the location information from the Plot Title listed in the file
+loc <- str_split_fixed(hobo_file, "_", n = 2) 
 loc <- loc[,1]
-file <- paste0(updir,"/", wl_file)
-hobo_file <- str_replace(wl_file, "txt", "hobo")
+file <- paste0(updir,"/", hobo_file)
+hobo_file <- str_replace(hobo_file, "txt", "hobo")
 
 ### Read the raw data file (tab delimited text file)
 df <- readr::read_tsv(file, skip = 2, col_names = F, col_types = cols_only(X1 = "T", X2 = "d", X3 = "d")) %>% 
@@ -446,7 +446,7 @@ setFlagIDs <- function(){
       rename("SampleID" = ID, "FlagCode" = RatingFlag) %>%
       drop_na()
   } else {
-    df_flags <- NULL
+    df_flags <- NA
   }
 
   if(!is.null(df_flags)){
@@ -469,7 +469,7 @@ setFlagIDs <- function(){
     # Reorder df_flags columns to match the database table exactly # Add code to Skip if no df_flags
     df_flags <- df_flags[,c(3,4,1,2,5,6)]
   } else { # Condition TRUE - All FlagCodes are NA, thus no df_flags needed, assign NA
-    df_flags <- NULL
+    df_flags <- NA
   } # End flags processing chunk
 } # End set flags function
 df_flags <- setFlagIDs()
@@ -509,15 +509,21 @@ df_HOBO <- select(df_HOBO, - Logger_temp_f)
 ### Connect to db  ## IMPORTANT - timezone set as UTC
 con <- dbConnect(odbc::odbc(),
                  .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                            paste0("DBQ=", "C:/WQDatabase/WaterQualityDB_fe.mdb"), "Uid=Admin;Pwd=;", sep = ";"),
+                                            paste0("DBQ=", wave_db), "Uid=Admin;Pwd=;", sep = ";"),
                  timezone = "America/New_York")
 df_stage <- dbReadTable(con,"tblWQALLDATA")
+dbDisconnect()
+rm(con)
+
 df_stage <- df_stage %>% 
   filter(Location == loc,
          Parameter == "Staff Gauge Height",
          SampleDateTime > min(df_HOBO$DateTimeUTC),
          SampleDateTime < max(df_HOBO$DateTimeUTC)) %>% 
   select(c(Location, SampleDateTime, Parameter, FinalResult))
+
+
+
 
 dfs <- list(
   "df" = df_HOBO,
@@ -531,7 +537,7 @@ return(dfs)
 } ### End function
 # df_hobo <- df_HOBO
 # var2 = "Discharge"
-# dfs <- PROCESS_HOBO(wl_file, stage, username)
+# dfs <- PROCESS_HOBO(hobo_file, stage, username)
 # df_hobo <- dfs[[1]]
 # df_flags <- dfs[[2]]
 # df_prior <- dfs[[3]]
@@ -550,7 +556,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
             "Discharge (cfs) - prior" = "steelblue",
             "Stage (ft)" = "darkgreen",
             "Stage (ft) - prior" = "darkseagreen4",
-            "Stage (ft) - manual" = "firebrick4"
+            "Stage (ft) - manual" = "darkorange3"
             )
   if(is.null(df_prior)){
     prior <-  FALSE
@@ -620,18 +626,18 @@ if(nrow(df_stage) > 0){
 # plot <- PREVIEW_HOBO(df_hobo = df_hobo, df_prior = NULL, var2 = "Discharge")
 # plot
 # Comment out if running in shiny
-# df_HOBO <- PROCESS_HOBO(wl_file = wl_file, stage = stage)
+# df_HOBO <- PROCESS_HOBO(hobo_file = hobo_file, stage = stage)
 
 ###
 ### _____________________________________________________________________________________
 ###
 
-IMPORT_HOBO <- function(df_hobo, df_flags, wl_file){
+IMPORT_HOBO <- function(df_hobo, df_flags, hobo_file){
   print(paste0("HOBO Data started importing at ", Sys.time()))
-  loc <- str_split_fixed(wl_file, "_", n = 2) 
+  loc <- str_split_fixed(hobo_file, "_", n = 2) 
   loc <- loc[,1]
-  file <- paste0(updir,"/", wl_file)
-  hobo_file <- str_replace(wl_file, "txt", "hobo")
+  file <- paste0(updir,"/", hobo_file)
+  hobo_file <- str_replace(hobo_file, "txt", "hobo")
   if(loc == "SYW177"){
     hobo_tbl <- "tbl_HOBO_WELLS"
   }
@@ -658,7 +664,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, wl_file){
   dir_num <- as.numeric(which(!is.na(str_match(list.dirs(hobo_path, recursive = T, full.names = T), loc))))
   subdir <- list.dirs(hobo_path, recursive = T, full.names = T)[dir_num]
 
-  file.rename(file, paste0(subdir, "/", wl_file))
+  file.rename(file, paste0(subdir, "/", hobo_file))
   file.rename(paste0(updir,"/", hobo_file), paste0(subdir, "/", hobo_file))
   print(paste0("HOBO Data finished importing at ", Sys.time()))
   return("Import Successful")

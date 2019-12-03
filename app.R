@@ -41,12 +41,16 @@ dbDisconnect(con)
 rm(con)
 
 ### HOBO TOOL Funtion Args
-hobo_path <- config[1]
-updir <- config[2]
-hobo_db <- db # Same as rating info - all in Hydro DB
-baro_tbl <- config[4]
-hobo_tbl <- config[5]
-ImportFlagTable <- config[6]
+hobo_path <<- config[1]
+updir <<- config[2]
+hobo_db <<- db # Same as rating info - all in Hydro DB
+baro_tbl <<- config[4]
+hobo_tbl <<- config[5]
+ImportFlagTable <<- config[6]
+wave_db <<- config[7]
+mayfly_data_dir <<- config[16]
+mayfly_data_processed <<- config[17]
+mayfly_table <<- "tblMayfly"
 
 #Set user info
 user <-  Sys.getenv("USERNAME")
@@ -58,6 +62,7 @@ source("mod_ratings.R")
 source("Ratings.R")
 source("mod_hobos.R")
 source("ProcessHOBO.R")
+source("ProcessMayflyData.R")
 
 ### UI  ####
 ### font-family: 'Lobster', cursive;
@@ -81,7 +86,8 @@ source("ProcessHOBO.R")
 server <- function(input, output, session) {
     callModule(RATINGS, "mod_ratings", df_discharges = df_discharges, df_ratings = df_ratings)
     callModule(HOBO, "mod_hobos", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, 
-               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, ImportFlagTable = ImportFlagTable, username = username)
+               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, mayfly_data_dir = mayfly_data_dir,
+               mayfly_data_processed = mayfly_data_processed, ImportFlagTable = ImportFlagTable, username = username)
     
 # Stop app when browser session window closes
  session$onSessionEnded(function() {

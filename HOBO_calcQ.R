@@ -8,14 +8,14 @@
 ##############################################################################################################################
 # filename_db <-  db
 # loc <- loc
-# df_HOBO <- df2
-# Load libraries needed
-library(tidyverse)
-library(odbc)
-library(RODBC)
-library(DBI)
-library(lubridate)
-library(magrittr)
+# df_HOBO <- df
+# # Load libraries needed
+# library(tidyverse)
+# library(odbc)
+# library(RODBC)
+# library(DBI)
+# library(lubridate)
+# library(magrittr)
 
 HOBOcalcQ <- function(filename_db, loc, df_HOBO) {
 
@@ -130,3 +130,4 @@ HOBOcalcQ <- function(filename_db, loc, df_HOBO) {
 
 ##############################################################################################
 
+# x <- HOBOcalcQ(filename_db = db, loc = loc, df_HOBO = df)
