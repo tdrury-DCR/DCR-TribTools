@@ -107,7 +107,7 @@ baro[,c(2,3,6)] <- round(baro[,c(2,3,6)], digits = 2)
           # ### Convert to UTC to eliminate gaps and duplicates due to DST
           # baro$DateTimeUTC <- with_tz(baro$DateTimeUTC, UTC)
 
-### Connect to db
+### Connect to db #1
 con <- dbConnect(odbc::odbc(),
                    .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
                                               paste0("DBQ=", hobo_db), "Uid=Admin;Pwd=;", sep = ";"),
@@ -159,7 +159,7 @@ print(head(baro, n=10))
 baro <- select(baro, - Logger_temp_f)
 
 ### Disconnect from db and remove connection obj
-dbDisconnect(con)
+dbDisconnect(con) #1
 rm(con)
 print(paste0("Barometric HOBO Data finished processing at ", Sys.time()))
 
@@ -316,11 +316,11 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ###
 
 ### List txt files for HOBO downloads to be processed
-# hobo_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
-# hobo_files ### Show the files
-# hobo_file <- hobo_files[4] ### Pick a file
-# username <- "Dan Crocker"
-# stage <- 0.7 ### Enter stage at time of data download (Numeric entry in Shiny App
+hobo_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
+hobo_files ### Show the files
+hobo_file <- hobo_files[10] ### Pick a file
+username <- "Dan Crocker"
+stage <- 0.7 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_file, stage, username){
 print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -356,7 +356,7 @@ if(loc %in% c("FHLN", "FPRN")){
     baro <- c("MD02", "MD83")
   }
  
-### Connect to db  ## IMPORTANT - timezone set as UTC
+### Connect to db # 2  ## IMPORTANT - timezone set as UTC
 con <- dbConnect(odbc::odbc(),
                  .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
                                             paste0("DBQ=", hobo_db), "Uid=Admin;Pwd=;", sep = ";"),
@@ -365,7 +365,7 @@ con <- dbConnect(odbc::odbc(),
 df_baro <- dbReadTable(con, baro_tbl)
 
 ### Disconnect from db and remove connection obj
-dbDisconnect(con)
+dbDisconnect(con) #2
 rm(con)
 ### Filter barometric records to the appropriate barometer
 df_baro <- df_baro %>%
@@ -416,7 +416,7 @@ if(loc == "SYW177"){
   }
 
 
-### Connect to db
+### Connect to db #3
 con <- dbConnect(odbc::odbc(),
                  .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
                                             paste0("DBQ=", hobo_db), "Uid=Admin;Pwd=;", sep = ";"),
@@ -449,7 +449,7 @@ setFlagIDs <- function(){
     df_flags <- NA
   }
 
-  if(!is.null(df_flags)){
+  if(!is.na(df_flags)){
     query.flags <- dbGetQuery(con, paste0("SELECT max(ID) FROM ", ImportFlagTable))
     # Get current max ID
     if(is.na(query.flags)) {
@@ -492,7 +492,7 @@ if(nrow(hobo_prior) > 0){
 # hobo_prior$DateTimeUTC <- with_tz(hobo_prior$DateTimeUTC, tzone = "America/New_York")
 
 ### Disconnect from db and remove connection obj
-dbDisconnect(con)
+dbDisconnect(con) #3
 rm(con)
 
 ### Convert F to C
@@ -506,13 +506,14 @@ print(head(df_flags, n = 10L))
 df_HOBO <- select(df_HOBO, - Logger_temp_f)
 
 
-### Connect to db  ## IMPORTANT - timezone set as UTC
+### Connect to db  #4 ## IMPORTANT - timezone set as UTC
 con <- dbConnect(odbc::odbc(),
                  .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
                                             paste0("DBQ=", wave_db), "Uid=Admin;Pwd=;", sep = ";"),
                  timezone = "America/New_York")
 df_stage <- dbReadTable(con,"tblWQALLDATA")
-dbDisconnect()
+
+dbDisconnect(con) #4
 rm(con)
 
 df_stage <- df_stage %>% 
@@ -521,9 +522,6 @@ df_stage <- df_stage %>%
          SampleDateTime > min(df_HOBO$DateTimeUTC),
          SampleDateTime < max(df_HOBO$DateTimeUTC)) %>% 
   select(c(Location, SampleDateTime, Parameter, FinalResult))
-
-
-
 
 dfs <- list(
   "df" = df_HOBO,

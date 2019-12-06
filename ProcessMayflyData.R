@@ -10,7 +10,7 @@
 # mayfly_files <- list.files(mayfly_data_dir)
 # mayfly_file <- mayfly_files[1]
 # username <- "Dan Crocker"
-# stage <- 4.04 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App)
   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username){
   
@@ -27,13 +27,9 @@ df <- read_csv(file, skip = 7, guess_max = 100,
                  `Date and Time in UTC-5` = col_character(),
                  CTDcond = col_double(),
                  CTDdepth = col_double(),
-                 CTDtemp = col_double(),
-                 Battery = col_skip(),
-                 BoardTemp = col_skip(),
-                 RSSI = col_skip(),
-                 signalPercent = col_skip(),
-                 X9 = col_skip()
-               )) %>%                   
+                 CTDtemp = col_double()
+               )) %>%   
+  select(c(1:4)) %>% 
   drop_na() %>%
   mutate("Location" = loc, "ID" = NA_integer_)
 
@@ -253,14 +249,14 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
           axis.title.x = element_text(angle = 0, face = "bold", color = "black"),
           axis.title.y = element_text(angle = 90, face = "bold", color = "black"))
   
-  # plot
+  plot
   return(plot)
 }
 
 # df_mayfly <- dfs[[1]]
 # df_stage <- dfs[[4]]
 # df_prior <- dfs[[3]]
-# var2 <- "Discharge"
+# var2 <- "Conductivity"
 # 
 # plot <- PREVIEW_MAYFLY(df_mayfly = df_mayfly, df_stage = df_stage, df_prior = df_prior, var2 = var2)
 # plot

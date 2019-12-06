@@ -27,7 +27,7 @@
 # #10. Record the 
 # 
 # 
-# ### Get data configs ####
+### Get data configs ####
 # config <- read.csv("//env.govt.state.ma.us/enterprise/DCR-WestBoylston-WKGRP/WatershedJAH/EQStaff/WQDatabase/R-Shared/WAVE-WIT/Configs/WAVE_WIT_Config.csv", header = TRUE)
 # config <- as.character(config$CONFIG_VALUE)
 # 
@@ -43,16 +43,16 @@
 # # ### FUNCTION ARGS ####
 # tbl_discharges <- dbReadTable(con,"tblDischargeMeasurements")
 # tbl_ratings <- dbReadTable(con,"tblRatings")
-# # 
+# #
 # dbDisconnect(con)
 # rm(con)
-
+# 
 # locs <- unique(tbl_discharges$Location)
 # locs # Look at the locations
-# loc <- locs[1] # Pick a location
+# loc <- locs[4] # Pick a location
 # ratingNo <-  1.02
 # drop_meas <- NULL
-# offset1 <- 0.213
+# offset1 <- 0.028
 # break1 <- 0
 # offset2 <- 0
 # break2 <- 0
@@ -92,7 +92,6 @@ data1 <- tbl_discharges %>%
   mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE),
          Measurement_Weight = quality[Measurement_Rated]) %>%
   filter(RatingNumber > floor(new_rating), RatingNumber <= new_rating)
-
 
 data1$Measurement_Weight <- replace_na(data1$Measurement_Weight, 70)
 
@@ -471,10 +470,9 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
   data1$RatingNumber <- as.factor(data1$RatingNumber)
   
-
   xmin <- 0
-  xmax <- ceiling(max(data1$Discharge_cfs)+(0.1 * max(data1$Discharge_cfs)))
-  ymin <- max(c(min(data1$Stage_ft)) - 0.25,0)
+  xmax <- ceiling(max(data1$Discharge_cfs) + (0.1 * max(data1$Discharge_cfs)))
+  ymin <- max(c(min(data1$Stage_ft)) - 0.25, 0)
   ymax <- max(data1$Stage_ft) + 0.25
   cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
   title <- paste0("DISCHARGE MEASUREMENTS AT ", loc)

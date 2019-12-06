@@ -28,7 +28,8 @@ HOBOcalcQ <- function(filename_db, loc, df_HOBO) {
   rm(con)
   # Assigntoday's date as the end date for ratings that are still valid - so that date test won't compare against NA values
   now <- format(Sys.time(), "%Y-%m-%d")
-  ratings$End[is.na(ratings$End)] <- now
+  maxtime <- max(df_HOBO$DateTimeUTC) + hours(5)
+  ratings$End[is.na(ratings$End)] <- maxtime %>% ceiling_date("day") %>% as_date()
 
   ### Check the location to make sure there is a valid rating:
   if(loc %in% ratings$MWRA_Loc){ # IF true then a rating exists

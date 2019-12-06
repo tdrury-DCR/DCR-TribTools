@@ -19,13 +19,13 @@ ipak <- function(pkg){
 ### NOTE - Shiny must be installed and loaded in the LaunchAppGitHub.R script - any other packages requred should be listed below
 
 packages <- c("RODBC", "DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT",
-              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders")
+              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue")
 ipak(packages) 
 ### Set environment timezone
 # Sys.setenv(TZ='UTC')
 ### Set db with Discharge and Rating Data ####
 db <- config[3]
-### Connect to Database
+### Connect to Database #1
 con <- dbConnect(odbc::odbc(),
                  .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
                                             paste0("DBQ=", db), "Uid=Admin;Pwd=;", sep = ";"),
@@ -37,7 +37,7 @@ rating_data <- config[8] ### Get the rating information
 df_discharges <- dbReadTable(con, measurement_data)
 df_ratings <- dbReadTable(con, rating_data)
 
-dbDisconnect(con)
+dbDisconnect(con) #1
 rm(con)
 
 ### HOBO TOOL Funtion Args
@@ -69,10 +69,10 @@ source("ProcessMayflyData.R")
 
     # shinythemes::themeSelector(),
  ui <-  navbarPage(
-   "DCR-DWSP RATING-HOBO TOOLS",
-      tabPanel("HOBO",
+   "DCR-DWSP TRIB TOOLS",
+      tabPanel("HOBO/MAYFLY",
         fluidPage(theme = shinytheme("united"),
-          h1("Tributary HOBO Data Tool"),
+          h1("Tributary Sensor Data Tool"),
           HOBO_UI("mod_hobos"))
       ),
       tabPanel("RATINGS",

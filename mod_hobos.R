@@ -172,7 +172,7 @@ var2_choices <- reactive({
     
 ### Var2 UI ####
 output$var2.UI <- renderUI({
-  req(file_type() == "hobo", well_file() == 0)
+  req(file_type() %in% c("hobo","mayfly"), well_file() == 0)
   radioButtons(inputId = ns("var2"),
                label = "Select the secondary Y axis value to plot:", 
                choices = var2_choices(),
@@ -223,12 +223,15 @@ plot <- eventReactive(input$process,{
 output$plot <- renderPlot({
   req(try(df()))
   plot()
-  # if(file_type() == "baro" | well_file() == 1){
-  #   PREVIEW_BARO(df(), df_prior(), var2 = NULL)
-  # } else {
-  #   PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())
-  # }
-  })
+  if(file_type() == "baro" | well_file() == 1){
+    PREVIEW_BARO(df(), df_prior(), var2 = NULL)
+  } else {
+    switch(file_type(),
+         "hobo" = {PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())},
+         "mayfly" = {PREVIEW_MAYFLY(df(), df_prior(), df_stage(), var2 = var2())}
+    )
+  }
+})
   
 
   

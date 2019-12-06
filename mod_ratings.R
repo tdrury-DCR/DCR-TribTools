@@ -31,8 +31,8 @@ RATINGS_UI <- function(id) {
     fluidRow( 
       column(4, 
         uiOutput(ns("site_ui")),   
-        numericInput(ns("rating1"),"Select/Create Rating #:", min = 1.01, step = 0.01, value = 0, width = "200px")
-
+        numericInput(ns("rating1"),"Select/Create Rating #:", min = 1.01, step = 0.01, value = 0, width = "200px"),
+        textOutput(ns("pzf_current"))
       ),
       column(4,
         numericInput(ns("offset"),"Enter offset (ft) (Point of Zero Flow [PZF]", min = 0, max = 15, step = 0.01, value = 0, width = "400px"),
@@ -100,12 +100,14 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
   # Change case of DATE column for Date Select, pull into long format for filtering
 
   output$intro <- renderText({paste0("This module utilizes the nls package to determine the nonlinear (weighted) least-squares estimates of the parameters of a nonlinear model.  Once a location is selected, choose which rating to create. An existing rating can be recalculated or a new rating can be created.\n
-                                     Discharge measurements that correspond to the rating being generated will be selected and filtered initially to get rid of any measurements rated 'Poor'\n
-                                     At this point you can press the 'Calculate Rating' button and inspect the curve fit and statistics. You can hover on any of the measurements to see the \n
-                                     measurement number of each point. If certain points are far from the curve these may warrant another measurement to confirm or remove. To exclude any additional measurements \n
-                                     and rerun the rating just add the measurement numbers to the box below the plot.\n
-                                     Once a rating is acceptable add the coefficients to the rating table in the database. Decide if it is warranted to recalculate any historical discharges with the new rating. \n
-                                     Lastly, make sure to set any new ratings to 'current' so they will be applied to new data going into the database.")
+                                     Discharge measurements that correspond to the rating being generated will be selected.\n
+                                     Measurements are quality weighted by the model (relatively) as follows:\n
+                                    'Excellent' = 100, 'Good' = 85, 'Fair' = 70, 'Poor' = 0 (No quality provided = Fair(70)\n
+                                     click the 'Calculate Rating' button to inspect the curve fit and statistics. Hover on any of the measurements to see the \n
+                                     measurement number and other metadata for each point. If certain points are far from the curve, follow-up measurements should be taken and points should be evaluated for removal based on age/quality.\n 
+                                     To exclude measurements and rerun the rating model, add the measurement numbers to the box above the plot.\n
+                                     Once a rating is acceptable add the coefficients, and any removed measurements to the rating table in the database. Decide if it is warranted to recalculate any historical discharges with the new rating. \n
+                                     Lastly, update rating start and end dates and make sure to set the new rating to 'current' so it will be applied to new data going into the database.")
     })
   
   ### Site Selection
@@ -120,7 +122,12 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
                   selected = "Choose Location",
                   multiple = FALSE,
                   width = "400px")
-  })          
+  })      
+  
+  output$pzf_current <- renderText({
+    req(input$site != "Choose Location")
+    paste0("The PZF for the current rating at the selected site (", substrRight(input$site, 4), ") is: ", df_ratings$a1[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$Current == TRUE], " ft")
+  })
   
   output$discharges <- renderDataTable({
     datatable(df_discharges) %>%
