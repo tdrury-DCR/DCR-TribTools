@@ -27,11 +27,9 @@
 # #10. Record the 
 # 
 # 
-### Get data configs ####
-# config <- read.csv("//env.govt.state.ma.us/enterprise/DCR-WestBoylston-WKGRP/WatershedJAH/EQStaff/WQDatabase/R-Shared/WAVE-WIT/Configs/WAVE_WIT_Config.csv", header = TRUE)
-# config <- as.character(config$CONFIG_VALUE)
-# 
-# ### Set db for connection ####
+### Get data configs from Launch File ####
+
+### Set db for connection ####
 # db <- config[3]
 # 
 # ### Connect to Database ####
@@ -94,6 +92,7 @@ data1 <- tbl_discharges %>%
   filter(RatingNumber > floor(new_rating), RatingNumber <= new_rating)
 
 data1$Measurement_Weight <- replace_na(data1$Measurement_Weight, 70)
+data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
 
 if(!is.null(drop_meas)){
   data1 <- filter(data1, !MeasurementNumber %in% drop_meas)
@@ -462,13 +461,33 @@ return(dfs)
 ### Plot discharge measurements ####
 PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   
+  
+  loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
+  
+  current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
+  active_rating <- current_rating$RatingNum
+  
+  new_rating <- active_rating
+  
   data1 <- tbl_discharges %>% 
     filter(Location == loc) %>%
     dplyr::select(c(2,4:11)) %>%
     mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE))
   
   data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
-  data1$RatingNumber <- as.factor(data1$RatingNumber)
+  # data1$RatingNumber <- as.factor(data1$RatingNumber)
+  
+  apply_offset <- function(.x, .y){
+    # correct stage datum to match current rating datum
+    if(.x < new_rating){
+      round(.y + loc_ratings$RatingDatumOffset[loc_ratings$RatingNum == .x],2)
+    } else {
+      .y
+    }
+  }
+  data1 <- data1 %>% 
+    mutate(Stage_ft = map2_dbl(.x = RatingNumber, .y = Stage_ft, apply_offset))   
+  
   
   xmin <- 0
   xmax <- ceiling(max(data1$Discharge_cfs) + (0.1 * max(data1$Discharge_cfs)))
@@ -511,6 +530,23 @@ PLOT_RATING <- function(tbl_discharges, tbl_ratings, loc, ratingNo){
   substrRight <- function(x, n){
     substr(x, nchar(x)-n+1, nchar(x))
   }
+  
+tbl_ratings <- tbl_ratings %>% 
+    mutate(RatingDatumOffset = ifelse(is.na(RatingDatumOffset), 0, RatingDatumOffset))
+  
+  quality <- c("Fair" = 70, "Good" = 85, "Excellent" = 100, "Poor" = 0)
+  
+  loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
+  
+rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
+  
+loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
+
+current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
+active_rating <- current_rating$RatingNum
+
+new_rating <- ratingNo
+  
 ### Get the rating record from the table
 rating <- tbl_ratings[tbl_ratings$MWRA_Loc == substrRight(loc, 4) & tbl_ratings$RatingNum == ratingNo,]
 
@@ -522,9 +558,20 @@ rating <- tbl_ratings[tbl_ratings$MWRA_Loc == substrRight(loc, 4) & tbl_ratings$
     filter(MeasurementNumber > floor(max(MeasurementNumber, na.rm = TRUE)), MeasurementNumber < ceiling(max(MeasurementNumber, na.rm = TRUE)))
 
   data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
-  
+  data1$RatingNumber <- as.numeric(data1$RatingNumber)
   ### Convert the rating number to factor (for plotting)  
-  data1$RatingNumber <- as.factor(data1$RatingNumber)
+  # data1$m <- as.factor(data1$RatingNumber)
+  
+  apply_offset <- function(.x, .y){
+    # correct stage datum to match current rating datum
+    if(.x < new_rating){
+      round(.y + loc_ratings$RatingDatumOffset[loc_ratings$RatingNum == .x],2)
+    } else {
+      .y
+    }
+  }
+  data1 <- data1 %>% 
+    mutate(Stage_ft = map2_dbl(.x = RatingNumber, .y = Stage_ft, apply_offset))  
 
   ### Get the rating bounds, parts, then create a sequence of stage values to calculate rating curve
 minstage <- rating$MinStage
@@ -633,7 +680,7 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
   title <- paste0("RATING # ", ratingNo," AT ", loc)
   p <- ggplot() +
-    geom_point(data = data1,aes(x=Discharge_cfs, y= Stage_ft, color = Measurement_Rated,
+    geom_point(data = data1, aes(x=Discharge_cfs, y= Stage_ft, color = Measurement_Rated,
                                 text = paste("Meas.No:", MeasurementNumber, "<br>",
                                              "Stage:", Stage_ft, "<br>",
                                              "Discharge:",Discharge_cfs,"<br>",
