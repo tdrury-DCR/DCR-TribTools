@@ -648,7 +648,8 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_file){
           rownames = F, colnames = F, addPK = F , fast = F, varTypes = varTypes)
   
   # Flag data
-  if (!is.null(df_flags)){ # Check and make sure there is flag data to import
+  if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
+    print("Importing flags...")
     ColumnsOfTable <- sqlColumns(con, ImportFlagTable)
     varTypes  <- as.character(ColumnsOfTable$TYPE_NAME)
     sqlSave(con, df_flags, tablename = ImportFlagTable, append = T,
