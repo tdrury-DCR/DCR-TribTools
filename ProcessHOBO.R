@@ -318,9 +318,9 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_files[10] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 0.7 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username){
 print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -481,7 +481,8 @@ col_order <- c(dbListFields(con, hobo_tbl), "Logger_temp_f")
 t <- min(df_HOBO$DateTimeUTC)
 hobo_prior <- dbReadTable(con, hobo_tbl) 
 # hobo_prior$DateTimeUTC <-  force_tz(hobo_prior$DateTimeUTC, tzone = "UTC") 
-hobo_prior <- filter(hobo_prior, Location == loc, DateTimeUTC >= (t - 86400), DateTimeUTC < t)
+hobo_prior <- filter(hobo_prior, Location == loc, DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
+  arrange(DateTimeUTC)
 
 if(nrow(hobo_prior) > 0){
   ### Convert C to F

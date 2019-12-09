@@ -114,10 +114,10 @@ req(input$file)
 x <- input$file
   if(str_detect(x, pattern = "(_BARO_).*\\.txt$")){
     "baro" # Barometric hobo file selected
-  } else if (str_detect(x, pattern = "^.{4}_\\d{8}-\\d{8}\\.txt$")) {
-    "hobo" # Regular hobo file selected
+  } else if (str_detect(x, pattern = "^.{4}MF_\\d{8}-\\d{8}\\.txt$")) {
+    "mayfly" # Regular hobo file selected
   } else {
-    "mayfly"
+    "hobo"
   }  
 })
    #str_detect(pattern = "(^.{4}MF_).*\\.csv$") = "mayfly" # Mayfly logger file selected
