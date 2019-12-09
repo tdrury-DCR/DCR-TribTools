@@ -635,7 +635,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file){
   loc <- str_split_fixed(hobo_txt_file, "_", n = 2) 
   loc <- loc[,1]
   file <- paste0(updir,"/", hobo_txt_file)
-  hobo_file <- str_replace(hobo_file, "txt", "hobo")
+  hobo_file <- str_replace(hobo_txt_file, "txt", "hobo")
   if(loc == "SYW177"){
     hobo_tbl <- "tbl_HOBO_WELLS"
   }
