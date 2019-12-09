@@ -89,9 +89,9 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
 files <- reactive({
   
   mayfly_files <- list.files(mayfly_data_dir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.csv$")
-  hobo_files  <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.txt$")
+  hobo_txt_files  <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.txt$")
   barometer_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+(_BARO_).*\\.txt$")
-  all_files <- c(hobo_files, mayfly_files)
+  all_files <- c(hobo_txt_files, mayfly_files)
   
     if(length(barometer_files) > 0){
       files <- barometer_files
@@ -202,7 +202,7 @@ output$process.UI <- renderUI({
 dfs <- eventReactive(input$process,{
   switch(file_type(),
          "baro" = {PROCESS_BARO(baro_file = input$file)},
-         "hobo" = {PROCESS_HOBO(hobo_file = input$file, stage = input$stage, username = username)},
+         "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username)},
          "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username)}
   )
 })
@@ -299,7 +299,7 @@ observeEvent(input$import, {
   out <- tryCatch(
     switch(file_type(),
            "baro" = {IMPORT_BARO(df_baro = df(), baro_file = input$file)},
-           "hobo" = {IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), hobo_file = input$file)},
+           "hobo" = {IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), hobo_txt_file = input$file)},
            "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), df_flags = df_flags(), mayfly_file = input$file)}
     ),
     error = function(e) e)

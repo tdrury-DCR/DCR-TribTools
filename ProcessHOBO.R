@@ -288,7 +288,7 @@ IMPORT_BARO <- function(df_baro, baro_file){
   loc <- str_split_fixed(baro_file, "_", n = 2) 
   loc <- loc[,1]
   file <- paste0(updir,"/", baro_file)
-  hobo_file <- str_replace(baro_file, "txt", "hobo")
+  hobo_txt_file <- str_replace(baro_file, "txt", "hobo")
   ### Import the data to the database - Need to use RODBC methods here.
   con <-  odbcConnectAccess(hobo_db)
 
@@ -316,20 +316,20 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ###
 
 ### List txt files for HOBO downloads to be processed
-hobo_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
-hobo_files ### Show the files
-hobo_file <- hobo_files[10] ### Pick a file
-username <- "Dan Crocker"
-stage <- 0.7 ### Enter stage at time of data download (Numeric entry in Shiny App
+# hobo_txt_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
+# hobo_txt_files ### Show the files
+# hobo_txt_file <- hobo_files[10] ### Pick a file
+# username <- "Dan Crocker"
+# stage <- 0.7 ### Enter stage at time of data download (Numeric entry in Shiny App
 
-PROCESS_HOBO <- function(hobo_file, stage, username){
+PROCESS_HOBO <- function(hobo_txt_file, stage, username){
 print(paste0("HOBO Data started processing at ", Sys.time()))
 
 ### Extract the location information from the Plot Title listed in the file
-loc <- str_split_fixed(hobo_file, "_", n = 2) 
+loc <- str_split_fixed(hobo_txt_file, "_", n = 2) 
 loc <- loc[,1]
-file <- paste0(updir,"/", hobo_file)
-hobo_file <- str_replace(hobo_file, "txt", "hobo")
+file <- paste0(updir,"/", hobo_txt_file)
+hobo_file <- str_replace(hobo_txt_file, "txt", "hobo")
 
 ### Read the raw data file (tab delimited text file)
 df <- readr::read_tsv(file, skip = 2, col_names = F, col_types = cols_only(X1 = "T", X2 = "d", X3 = "d")) %>% 
@@ -624,17 +624,17 @@ if(nrow(df_stage) > 0){
 # plot <- PREVIEW_HOBO(df_hobo = df_hobo, df_prior = NULL, var2 = "Discharge")
 # plot
 # Comment out if running in shiny
-# df_HOBO <- PROCESS_HOBO(hobo_file = hobo_file, stage = stage)
+# df_HOBO <- PROCESS_HOBO(hobo_txt_file = hobo_file, stage = stage)
 
 ###
 ### _____________________________________________________________________________________
 ###
 
-IMPORT_HOBO <- function(df_hobo, df_flags, hobo_file){
+IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file){
   print(paste0("HOBO Data started importing at ", Sys.time()))
-  loc <- str_split_fixed(hobo_file, "_", n = 2) 
+  loc <- str_split_fixed(hobo_txt_file, "_", n = 2) 
   loc <- loc[,1]
-  file <- paste0(updir,"/", hobo_file)
+  file <- paste0(updir,"/", hobo_txt_file)
   hobo_file <- str_replace(hobo_file, "txt", "hobo")
   if(loc == "SYW177"){
     hobo_tbl <- "tbl_HOBO_WELLS"
@@ -663,7 +663,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_file){
   dir_num <- as.numeric(which(!is.na(str_match(list.dirs(hobo_path, recursive = T, full.names = T), loc))))
   subdir <- list.dirs(hobo_path, recursive = T, full.names = T)[dir_num]
 
-  file.rename(file, paste0(subdir, "/", hobo_file))
+  file.rename(file, paste0(subdir, "/", hobo_txt_file))
   file.rename(paste0(updir,"/", hobo_file), paste0(subdir, "/", hobo_file))
   print(paste0("HOBO Data finished importing at ", Sys.time()))
   return("Import Successful")
