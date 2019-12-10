@@ -28,8 +28,8 @@
 # 
 # 
 ### Get data configs from Launch File ####
-
-### Set db for connection ####
+# 
+# ### Set db for connection ####
 # db <- config[3]
 # 
 # ### Connect to Database ####
@@ -461,6 +461,8 @@ return(dfs)
 ### Plot discharge measurements ####
 PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   
+  tbl_ratings <- tbl_ratings %>% 
+    mutate(RatingDatumOffset = ifelse(is.na(RatingDatumOffset), 0, RatingDatumOffset))
   
   loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
   
@@ -470,7 +472,8 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   new_rating <- active_rating
   
   data1 <- tbl_discharges %>% 
-    filter(Location == loc) %>%
+    filter(Location == loc,
+           RatingNumber %in% loc_ratings$RatingNum) %>% ### This filters out discharge measurements with undocumented ratings (MD01)
     dplyr::select(c(2,4:11)) %>%
     mutate(Stage_ft = rowMeans(dplyr::select(.,starts_with("Stage")), na.rm = TRUE))
   
@@ -480,7 +483,7 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   apply_offset <- function(.x, .y){
     # correct stage datum to match current rating datum
     if(.x < new_rating){
-      round(.y + loc_ratings$RatingDatumOffset[loc_ratings$RatingNum == .x],2)
+      round(.y + loc_ratings$RatingDatumOffset[loc_ratings$RatingNum == .x], 2)
     } else {
       .y
     }
@@ -519,6 +522,8 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   # p_discharges
   
 }
+### PLOT_MEASUREMENTS INTERACTIVE ####
+# loc <- "TROUT BROOK - M110"
 # p <- PLOT_MEASUREMENTS(tbl_discharges, tbl_ratings, loc)
 # p
 
@@ -548,7 +553,7 @@ active_rating <- current_rating$RatingNum
 new_rating <- ratingNo
   
 ### Get the rating record from the table
-rating <- tbl_ratings[tbl_ratings$MWRA_Loc == substrRight(loc, 4) & tbl_ratings$RatingNum == ratingNo,]
+# rating <- tbl_ratings[tbl_ratings$MWRA_Loc == substrRight(loc, 4) & tbl_ratings$RatingNum == ratingNo,]
 
 ### Pull the stage and discharge data for selected location and selected rating number from the discharge measurements table  
   data1 <- tbl_discharges %>% 
@@ -674,7 +679,7 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   df_Q$Q <- round(df_Q$Q, digits = 2)
        
   xmin <- 0
-  xmax <- ceiling(max(data1$Discharge_cfs)+(0.1 * max(data1$Discharge_cfs)))
+  xmax <- ceiling(max(data1$Discharge_cfs) + (0.1 * max(data1$Discharge_cfs)))
   ymin <- max(c(min(data1$Stage_ft)) - 0.25,0)
   ymax <- max(data1$Stage_ft) + 0.25
   cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
@@ -729,8 +734,10 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
     layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
   # p_rating
 }
-  
-# p <- PLOT_RATING(tbl_discharges, tbl_ratings, loc, ratingNo = 2.01)
+### PLOT_RATING INTERACTIVE ####
+# loc <- "FRENCH BROOK - MD01"
+# ratingNo <- 2.02
+# p <- PLOT_RATING(tbl_discharges, tbl_ratings, loc, ratingNo = 1.02)
 # p
 # 
   # 
