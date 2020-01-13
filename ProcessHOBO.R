@@ -288,7 +288,7 @@ IMPORT_BARO <- function(df_baro, baro_file){
   loc <- str_split_fixed(baro_file, "_", n = 2) 
   loc <- loc[,1]
   file <- paste0(updir,"/", baro_file)
-  hobo_txt_file <- str_replace(baro_file, "txt", "hobo")
+  hobo_file <- str_replace(baro_file, "txt", "hobo")
   ### Import the data to the database - Need to use RODBC methods here.
   con <-  odbcConnectAccess(hobo_db)
 
