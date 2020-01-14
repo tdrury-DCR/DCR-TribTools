@@ -7,10 +7,10 @@
 #  R version 3.5.3 (2019-03-11)  i386
 ##############################################################################.
 
-mayfly_files <- list.files(mayfly_data_dir) %>% print()
-mayfly_file <- mayfly_files[1]
-username <- "Dan Crocker"
-stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# mayfly_files <- list.files(mayfly_data_dir) %>% print()
+# mayfly_file <- mayfly_files[1]
+# username <- "Dan Crocker"
+# stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App)
   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username){
   
