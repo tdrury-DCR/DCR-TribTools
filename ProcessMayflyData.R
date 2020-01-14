@@ -7,10 +7,10 @@
 #  R version 3.5.3 (2019-03-11)  i386
 ##############################################################################.
 
-# mayfly_files <- list.files(mayfly_data_dir)
-# mayfly_file <- mayfly_files[1]
-# username <- "Dan Crocker"
-# stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App)
+mayfly_files <- list.files(mayfly_data_dir) %>% print()
+mayfly_file <- mayfly_files[1]
+username <- "Dan Crocker"
+stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App)
   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username){
   
@@ -36,7 +36,7 @@ df <- read_csv(file, skip = 7, guess_max = 100,
 names(df) <- c("DateTimeUTC", "Conductivity_uScm", "Stage_ft", "Logger_temp_c", "Location","ID")
 
 ### Format Date-Time stamp
-df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "America/Lima" ) # Use lima (UTC-5 to convert times - this avoids EST for America/New_York)
+df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "America/Lima" ) # Use lima (UTC-5 to convert times - this avoids EST for America/New_York)
 df$DateTimeUTC <- as_datetime(df$DateTimeUTC, tz = "UTC")
 
 ### Convert Stage from mm to ft
@@ -166,7 +166,7 @@ return(dfs)
 
 ### Run funciton locally, comment out when deployed in Shiny
 
-# dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = 4.04, username = "Dan Crocker")
+dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = 1.44, username = "Dan Crocker")
 
 
 PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = NULL) {
