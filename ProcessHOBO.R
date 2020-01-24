@@ -350,7 +350,7 @@ df[,3] <- round(df[,3], digits = 2)
         # df$DateTimeUTC <- with_tz(df$DateTimeUTC, "UTC")
 ### Get appropriate barometric file based on location
 
-if(loc %in% c("FHLN", "FPRN")){
+if(loc %in% c("FHLN", "FPRN", "HLNW")){
     baro <- "FPRN"
   } else {
     baro <- c("MD02", "MD83")
