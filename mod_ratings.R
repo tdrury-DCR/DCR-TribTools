@@ -112,7 +112,7 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
   
   ### Site Selection
   site_choices <- reactive({
-    df_discharges %>% .$Location %>% sort() %>% paste()
+    c("HOLDEN FORESTRY WEIR - HLNW",  df_discharges %>% .$Location) %>% sort() %>% paste()
     })
   
   # Site UI

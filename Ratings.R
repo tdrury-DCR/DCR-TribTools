@@ -28,7 +28,7 @@
 # 
 # 
 ### Get data configs from Launch File ####
-# 
+# # 
 # ### Set db for connection ####
 # db <- config[3]
 # 
@@ -174,7 +174,7 @@ r_2part <- function(gaugings, offset1, break1, offset2){
 ### Part 1 ####  
   # Fitting the power law
   # Note that the start argument requires a list with initial estimates of the coefficients to be estimated
-  power.nls1 <- nls(discharge ~ C * (stage - offset1)^n, data = gaugings, start = list(C = 1, n = 2), weights = weight1)
+  power.nls1 <- nls(discharge ~ C * (stage - offset1)^n, data = gaugings1, start = list(C = 1, n = 2), weights = weight1)
   
   ### Generate confidence intervals from regression ###
   conf_int1 <- confint2(object = power.nls1, level = 0.95)
@@ -186,7 +186,7 @@ r_2part <- function(gaugings, offset1, break1, offset2){
   eq1 <- paste0("Q = ",C1,"*(h-",a1,")^",n1)
   
 ### Part 2 ####    
-  power.nls2 <- nls(discharge2 ~ C * (stage2 - offset1)^n, data = gaugings2, start = list(C = 1, n = 2),weights = weight2)
+  power.nls2 <- nls(discharge2 ~ C * (stage2 - offset2)^n, data = gaugings2, start = list(C = 1, n = 2),weights = weight2)
   
   ### Generate confidence intervals from regression ###
   conf_int2 <- confint2(object = power.nls2, level = 0.95)
@@ -471,6 +471,23 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   
   new_rating <- active_rating
   
+  number_measurements <- tbl_discharges %>% filter(Location == loc,
+                                                   RatingNumber %in% loc_ratings$RatingNum) %>% 
+    nrow() %>% as.numeric()
+  
+  # If taxa to be plotted is not in the current db, plot message, otherwise continue with plotting data
+  if (number_measurements == 0){
+    df <- data.frame()
+    p <- ggplot(df) +
+      theme_void() +
+      annotate("text", x = 4, y = 25, label = paste0(
+        "No discharge measurements are available for location ", loc),
+        color = "blue", size = 5, fontface = "bold.italic")
+    p_discharges <- plotly::ggplotly(p, tooltip = c("text")) %>% 
+      layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
+    return(p_discharges)
+  } else {
+  
   data1 <- tbl_discharges %>% 
     filter(Location == loc,
            RatingNumber %in% loc_ratings$RatingNum) %>% ### This filters out discharge measurements with undocumented ratings (MD01)
@@ -519,8 +536,9 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   
   p_discharges <- plotly::ggplotly(p, tooltip = c("text")) %>% 
     layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
-  # p_discharges
   
+  return(p_discharges)
+  }
 }
 ### PLOT_MEASUREMENTS INTERACTIVE ####
 # loc <- "TROUT BROOK - M110"
@@ -677,22 +695,36 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
          df_Q$Q[i] <- findq(stage = df_Q$stage[i], C = get(C), a = get(a), n = get(n))
        }
   df_Q$Q <- round(df_Q$Q, digits = 2)
-       
-  xmin <- 0
-  xmax <- ceiling(max(data1$Discharge_cfs) + (0.1 * max(data1$Discharge_cfs)))
-  ymin <- max(c(min(data1$Stage_ft)) - 0.25,0)
-  ymax <- max(data1$Stage_ft) + 0.25
+   
+  ########################################################################.
+  ###                              PLOT                                ####
+  ########################################################################.   
+  
   cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
   title <- paste0("RATING # ", ratingNo," AT ", loc)
-  p <- ggplot() +
-    geom_point(data = data1, aes(x=Discharge_cfs, y= Stage_ft, color = Measurement_Rated,
-                                text = paste("Meas.No:", MeasurementNumber, "<br>",
-                                             "Stage:", Stage_ft, "<br>",
-                                             "Discharge:",Discharge_cfs,"<br>",
-                                             "Date:", as_date(DateTimeStart),"<br>",
-                                             "Quality:", Measurement_Rated))) + 
-    geom_path(data = df_Q, aes(x = Q, stage), color = "red") +
-    scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
+  xmin <- 0
+  ### Need to use different plot elements for HLNW (no discharge measurements)
+  if (data1 %>% nrow() == 0) {
+    # xmax <- maxstage
+    ymin <- 0
+    ymax <- maxstage
+    p <- ggplot()
+  } else {
+    # xmax <- ceiling(max(data1$Discharge_cfs) + (0.1 * max(data1$Discharge_cfs)))
+    ymin <- max(c(min(data1$Stage_ft)) - 0.25,0)
+    ymax <- max(data1$Stage_ft) + 0.25
+    
+    p <- ggplot() +
+      geom_point(data = data1, aes(x=Discharge_cfs, y= Stage_ft, color = Measurement_Rated,
+                                   text = paste("Meas.No:", MeasurementNumber, "<br>",
+                                                "Stage:", Stage_ft, "<br>",
+                                                "Discharge:",Discharge_cfs,"<br>",
+                                                "Date:", as_date(DateTimeStart),"<br>",
+                                                "Quality:", Measurement_Rated)))
+  }
+
+  p <- p + geom_path(data = df_Q, aes(x = Q, stage), color = "red") +
+    scale_x_continuous(name = "Discharge (cfs)",limits = c(0,NA)) +
     scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) +
     scale_color_manual(values = cols) +
     # scale_shape_identity() +
@@ -719,12 +751,12 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   # Add rating equation(s) and break1 if exists
   if(parts == 2){
     p <- p + geom_hline(yintercept = break1, color = "darkgreen", linetype = 3) +
-      annotate("text", x = 0.75 * xmax, y = break1 - 0.06, label = paste0("Rating Breakpoint 1 (",break1, " ft)"), color ="seagreen")
+      annotate("text", x = max(df_Q$Q) * 0.75, y = break1 - 0.1, label = paste0("Rating Breakpoint 1 (",break1, " ft)"), color ="seagreen")
   } else if(parts == 3){
     p <- p + geom_hline(yintercept = break1, color = "darkgreen", linetype = 3) +
-      annotate("text", x = 0.75 * xmax, y = break1 - 0.06, label = paste0("Rating Breakpoint 1 (",break1, " ft)") , color ="seagreen") +
+      annotate("text", x = max(df_Q$Q) * 0.75, y = break1 - 0.1, label = paste0("Rating Breakpoint 1 (",break1, " ft)") , color ="seagreen") +
       geom_hline(yintercept = break2, color = "darkgreen", linetype = 3) +
-      annotate("text", x = 0.75 * xmax, y = break2 - 0.06, label = paste0("Rating Breakpoint 2 (",break2, " ft)"), color ="seagreen")
+      annotate("text", x = max(df_Q$Q) * 0.75, y = break2 - 0.1, label = paste0("Rating Breakpoint 2 (",break2, " ft)"), color ="seagreen")
   } else {
     p <- p
   }
