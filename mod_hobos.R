@@ -233,8 +233,6 @@ output$plot <- renderPlot({
   }
 })
   
-
-  
   ### Show Import Button ####                 
   observeEvent(input$process, {
     ImportStatus("")
@@ -262,7 +260,6 @@ process_status <- reactive({
     paste0('The file "', input$file, '" was successfully processed')
   }
 })
-
 
 ### IMPORT STATUS ####
 import_status <- reactive({
@@ -349,11 +346,15 @@ observeEvent(input$refresh, {
 #### TABLE OUTPUTS ####
 
 dt_colnames <- reactive({
-  switch(file_type(),
-         "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)"),
-         "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
-         "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)", "Conductivity (uS/cm)")
-  )
+  if( well_file() == 1) {
+    c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Water Level (ft)")
+  } else {
+    switch(file_type(),
+           "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)"),
+           "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
+           "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)", "Conductivity (uS/cm)")
+    )
+  }
 })
 
 

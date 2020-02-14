@@ -208,7 +208,7 @@ if(is.null(df_prior)){
 
 if(loc == "SYW177"){
     title <- paste0("Groundwater Level and Temperature from HOBO\n At Location ", loc)
-    ylab <- "Groundwater Level (ft below ground surface)"
+    y1lab <- "Groundwater Level (ft below ground surface)"
     y1lim <- max(pd$Water_Level_ft)
     y1data <- pd$Water_Level_ft
     y1prior <- df_prior$Water_Level_ft
@@ -218,7 +218,7 @@ if(loc == "SYW177"){
     y2prior_col <- "Water Temperature (C) - prior"
   } else {
     title <- paste0("Raw Air Pressure and Air Temperature from Barometric HOBO\n At Location ", loc)
-    ylab <- "Air Pressure (psi)"
+    y1lab <- "Air Pressure (psi)"
     y1lim <- max(pd$Logger_psi)
     y1data <- pd$Logger_psi
     y1prior <- df_prior$Logger_psi
@@ -260,7 +260,7 @@ if(loc == "SYW177"){
 plot <- plot +
   scale_x_datetime(breaks = pretty_breaks(n=12)) + 
   scale_colour_manual(values = cols) +
-  labs(y = ylab,
+  labs(y = y1lab,
        x = "Date",
        color = "") +
   ggtitle(title) +
@@ -318,9 +318,9 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[1] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 16.08 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username){
 print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -536,7 +536,7 @@ return(dfs)
 } ### End function
 # df_hobo <- df_HOBO
 # var2 = "Discharge"
-# dfs <- PROCESS_HOBO(hobo_file, stage, username)
+# dfs <- PROCESS_HOBO(hobo_txt_file, stage, username)
 # df_hobo <- dfs[[1]]
 # df_flags <- dfs[[2]]
 # df_prior <- dfs[[3]]
@@ -555,66 +555,96 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
             "Discharge (cfs) - prior" = "steelblue",
             "Stage (ft)" = "darkgreen",
             "Stage (ft) - prior" = "darkseagreen4",
-            "Stage (ft) - manual" = "darkorange3"
+            "Stage (ft) - manual" = "darkorange3",
+            "Groundwater level (ft below ground surface)" = "blue3",
+            "Groundwater level (ft below ground surface) - prior" = "blue4"
             )
   if(is.null(df_prior)){
     prior <-  FALSE
   } else {
     prior <-  TRUE
   }
-
-  y1lim <- max(pd$Stage_ft)
-
-  if(var2 == "Temperature"){
-
+  
+  if(loc == "SYW177"){
+    title <- paste0("Groundwater Level and Temperature from HOBO\n At Location ", loc)
+    y1lab <- "Groundwater Level (ft below ground surface)"
+    y1lim <- max(pd$Water_Level_ft)
+    y1data <- pd$Water_Level_ft
+    y1prior <- df_prior$Water_Level_ft
+    y1color <- "Groundwater level (ft below ground surface)"
+    y1prior_col <- "Groundwater level (ft below ground surface) - prior"
+    y2data <- pd$Logger_temp_c
+    y2col <- "Water Temperature (C)"
+    y2prior <- df_prior$Logger_temp_c
+    y2prior_col <- "Water Temperature (C) - prior"
     y2lim <- max(pd$Logger_temp_c)
-    title <- paste0("Stage and Water Temperature at Location ", loc)
+    y2lab <- "Water Temperature (C)"
+    
   } else {
-    y2lim <- max(pd$Discharge_cfs)
-    title <- paste0("Stage and Water Discharge at Location ", loc)
+    y1lab <- "Stage (ft)"
+    y1lim <- max(pd$Stage_ft)
+    y1data <- pd$Stage_ft
+    y1prior <- df_prior$Stage_ft
+    y1prior_col <- "Stage (ft) - prior"
+    y1color <- "Stage (ft)"
+    if(var2 == "Temperature"){
+      title <- paste0("Stage and Water Temperature at Location ", loc)
+      y2data <- pd$Logger_temp_c
+      y2prior <- df_prior$Logger_temp_c
+      y2col <- "Water Temperature (C)"
+      y2lim <- max(pd$Logger_temp_c)
+      y2prior_col <- "Water Temperature (C) - prior"
+      y2lab <- "Water Temperature (C)"
+      
+    } else { # Var2 is discharge
+      title <- paste0("Stage and Discharge at Location ", loc)
+      y2data <- pd$Discharge_cfs
+      y2prior <- df_prior$Discharge_cfs
+      y2col <-  "Discharge (cfs)"
+      y2lim <- max(pd$Discharge_cfs)
+      y2prior_col <- "Discharge (cfs) - prior"
+      y2lab <- "Discharge (cfs)"
+    }
   }
-
+  
   mult <- y1lim / abs(y2lim)
-
+  
   plot  <- ggplot(pd, aes(x = pd$DateTimeUTC)) +
-    geom_line(aes(y = pd$Stage_ft, color = "Stage (ft)"), size = 1)  
+    geom_line(aes(y = y1data, color = y1color), size = 1)  +
+    geom_line(aes(y = y2data * mult, color = y2col), size = 1)
 
-  if(var2 == "Temperature"){
-    plot <- plot +
-      geom_line(aes(y = pd$Logger_temp_c * mult, color = "Water Temperature (C)"), size = 1)
-  } else {
-    plot <- plot +
-      geom_line(aes(y = pd$Discharge_cfs * mult, color = "Discharge (cfs)"), size = 1)
-  }
   # Check for prior data to plot 
   if(isTRUE(prior)){
     plot <- plot +  
-      geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Stage_ft, color = "Stage (ft) - prior"), size = 1) +
+      geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = y1prior, color = y1prior_col), size = 1) +
+      geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = y2prior * mult, color = y2prior_col), size = 1) +
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
-    
-        if(var2 == "Temperature"){
-          plot <- plot + 
-            geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Logger_temp_c * mult, color = "Water Temperature (C) - prior"), size = 1) 
-        } else {
-          plot <- plot + 
-            geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
-        }  
   }
+  
 if(nrow(df_stage) > 0){
   plot <- plot + 
     geom_point(data = df_stage, aes(x = SampleDateTime, y = FinalResult, color = "Stage (ft) - manual"), size = 1)
 }
-  plot <- plot +    
-    scale_y_continuous(breaks = pretty_breaks(),limits = c(0, 1.2 * y1lim), 
-                       sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = var2)) +
+  
+  if(loc == "SYW177"){
+    plot <- plot +
+      scale_y_continuous(breaks = pretty_breaks(), limits = c(1.2 * y1lim, NA), trans = scales::reverse_trans(),
+                         sec.axis = sec_axis(trans = ~./mult,breaks = pretty_breaks(), name = y2lab))
+  } else {
+    plot <- plot +
+      scale_y_continuous(breaks = pretty_breaks(), limits = c(NA, 1.2 * y1lim),
+                         sec.axis = sec_axis(trans = ~./mult, breaks = pretty_breaks(), name = y2lab)) 
+  }
+
+  plot <- plot + 
     scale_x_datetime(breaks = pretty_breaks(n=12)) + 
     scale_colour_manual(values = cols) +
-    labs(y = "Stage (ft)",
+    labs(y = y1lab,
          x = "Date",
          colour = "") +
     ggtitle(title) +
     theme_linedraw() +
-    theme(plot.title = element_text(family = "Arial",color= "black", face="bold", size=14, vjust = 1, hjust = 0.5),
+    theme(plot.title = element_text(color= "black", face="bold", size=14, vjust = 1, hjust = 0.5),
           legend.position = "bottom",
           axis.title.x = element_text(angle = 0, face = "bold", color = "black"),
           axis.title.y = element_text(angle = 90, face = "bold", color = "black"))
