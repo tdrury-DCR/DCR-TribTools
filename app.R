@@ -31,70 +31,132 @@ con <- dbConnect(odbc::odbc(),
                                             paste0("DBQ=", db), "Uid=Admin;Pwd=;", sep = ";"),
                  timezone = "America/New_York")
 
-### RATING TOOL Function Args
-measurement_data <- config[9] ### Set the table name with discharges
-rating_data <- config[8] ### Get the rating information
-df_discharges <- dbReadTable(con, measurement_data)
-df_ratings <- dbReadTable(con, rating_data)
-
-dbDisconnect(con) #1
-rm(con)
-
-### HOBO TOOL Funtion Args
-hobo_path <<- config[1]
-updir <<- config[2]
-hobo_db <<- db # Same as rating info - all in Hydro DB
-baro_tbl <<- config[4]
-hobo_tbl <<- config[5]
-ImportFlagTable <<- config[6]
-wave_db <<- config[7]
-mayfly_data_dir <<- config[16]
-mayfly_data_processed <<- config[17]
-mayfly_table <<- "tblMayfly"
-
 #Set user info
 user <-  Sys.getenv("USERNAME")
 userdata <- readxl::read_xlsx(path = config[10])
-username <- paste(userdata$FirstName[userdata$Username %in% user],userdata$LastName[userdata$Username %in% user],sep = " ")
+userdata <- userdata[userdata$Username %in% user,]
+username <- paste(userdata[2], userdata[1], sep = " ")
+userlocation <<- paste0(userdata[6])
 
-### Source Modules and functions
-source("mod_ratings.R")
-source("Ratings.R")
-source("mod_hobos.R")
-source("ProcessHOBO.R")
-source("ProcessMayflyData.R")
+if (userlocation == "Wachusett") { ### WACHUSETT ####
+
+  ### RATING TOOL Function Args
+  measurement_data <- config[9] ### Set the table name with discharges
+  rating_data <- config[8] ### Get the rating information
+  df_discharges <- dbReadTable(con, measurement_data)
+  df_ratings <- dbReadTable(con, rating_data)  
+  
+  dbDisconnect(con) #1
+  rm(con)
+  
+  ### HOBO TOOL Funtion Args
+  hobo_path <<- config[1]
+  updir <<- config[2]
+  hobo_db <<- db # Same as rating info - all in Hydro DB
+  baro_tbl <<- config[4]
+  hobo_tbl <<- config[5]
+  ImportFlagTable <<- config[6]
+  wave_db <<- config[7]
+  mayfly_data_dir <<- config[16]
+  mayfly_data_processed <<- config[17]
+  mayfly_table <<- "tblMayfly"
+  
+  ### Source Modules and functions
+  source("mod_ratings.R")
+  source("Ratings.R")
+  source("mod_hobos.R")
+  source("ProcessHOBO.R")
+  source("ProcessMayflyData.R")
 
 ### UI  ####
 ### font-family: 'Lobster', cursive;
 
     # shinythemes::themeSelector(),
- ui <-  navbarPage(
-   "DCR-DWSP TRIB TOOLS",
-      tabPanel("HOBO/MAYFLY",
-        fluidPage(theme = shinytheme("united"),
-          h1("Tributary Sensor Data Tool"),
-          HOBO_UI("mod_hobos"))
-      ),
-      tabPanel("RATINGS",
-            fluidPage(theme = shinytheme("united"),
-                      h1("Tributary Rating Tool"),
-                      RATINGS_UI("mod_ratings"))
-            )
-) ### END UI ####
+  ui <-  navbarPage(
+    "DCR-DWSP TRIB TOOLS",
+    tabPanel("HOBO/MAYFLY",
+             fluidPage(theme = shinytheme("united"),
+                       h1("Tributary Sensor Data Tool"),
+                       HOBO_UI("mod_hobos"))
+    ),
+    tabPanel("RATINGS",
+             fluidPage(theme = shinytheme("united"),
+                       h1("Tributary Rating Tool"),
+                       RATINGS_UI("mod_ratings"))
+    )
+  ) ### END UI ####
   
   ### SERVER  ####
-server <- function(input, output, session) {
-    callModule(RATINGS, "mod_ratings", df_discharges = df_discharges, df_ratings = df_ratings)
-    callModule(HOBO, "mod_hobos", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, 
-               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, mayfly_data_dir = mayfly_data_dir,
-               mayfly_data_processed = mayfly_data_processed, ImportFlagTable = ImportFlagTable, username = username)
+  server <- function(input, output, session) {
+    # callModule(RATINGS, "mod_ratings", df_discharges = df_discharges, df_ratings = df_ratings)
+    # callModule(HOBO, "mod_hobos", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, 
+    #            baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, mayfly_data_dir = mayfly_data_dir,
+    #            mayfly_data_processed = mayfly_data_processed, ImportFlagTable = ImportFlagTable, username = username)
     
-# Stop app when browser session window closes
- session$onSessionEnded(function() {
-  stopApp()
-  })    
+    # Stop app when browser session window closes
+    session$onSessionEnded(function() {
+      stopApp()
+    })    
     
-} # End Server    
+  } # End Server 
+  
+} else { ### QUABIN ####
+  
+  ### RATING TOOL Function Args
+  measurement_data <- config[9] ### Set the table name with discharges
+  rating_data <- config[8] ### Get the rating information
+  df_discharges <- dbReadTable(con, measurement_data)
+  df_ratings <- dbReadTable(con, rating_data)  
+  
+  dbDisconnect(con)
+  rm(con)
+  
+  ### HOBO TOOL Funtion Args
+  hobo_path <<- config[1]
+  updir <<- config[2]
+  hobo_db <<- db # Same as rating info - all in Hydro DB
+  baro_tbl <<- config[4]
+  hobo_tbl <<- config[5]
+  ImportFlagTable <<- config[6]
+  mayfly_data_dir <<- NULL
+  mayfly_data_processed <<- config[17]
+  mayfly_table <<- "tblMayfly"
+  wave_db <<- config[7]
+  
+  ### Source Modules and functions
+  source("mod_ratings_q.R")
+  source("Ratings.R")
+  source("mod_hobos_q.R")
+  source("ProcessHOBO.R")
+  # source("ProcessMayflyData.R")
+  
+  ui <-  navbarPage(
+    "DCR-DWSP TRIB TOOLS",
+    tabPanel("HOBO",
+             fluidPage(theme = shinytheme("united"),
+                       h1("Tributary Sensor Data Tool"),
+                       HOBO_UI("mod_hobos_q"))
+    ),
+    tabPanel("RATINGS",
+             fluidPage(theme = shinytheme("united"),
+                       h1("Tributary Rating Tool"),
+                       RATINGS_UI("mod_ratings_q"))
+    )
+  ) ### END UI ####  
+  
+  ### SERVER  ####
+  server <- function(input, output, session) {
+    callModule(RATINGS, "mod_ratings_q", df_discharges = df_discharges, df_ratings = df_ratings)
+    callModule(HOBO, "mod_hobos_q", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, 
+               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, ImportFlagTable = ImportFlagTable, username = username)
+    
+    # Stop app when browser session window closes
+    session$onSessionEnded(function() {
+      stopApp()
+    })    
+  } # End Server 
+  
+}
 
 # combines the user interface and server
 shinyApp(ui = ui, server = server)
