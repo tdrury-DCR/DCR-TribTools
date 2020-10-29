@@ -66,7 +66,7 @@ HOBO_UI <- function(id) {
 ###         SERVER          ####
 ################################.
 
-HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, hobo_tbl, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username){  # Same as rating info - all in Hydro DB
+HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, hobo_tbl, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username, userlocation){  # Same as rating info - all in Hydro DB
   
   ### Source the HOBO functions ####
   # source("ProcessHOBO.R", local = T) ### source Script ####
@@ -202,7 +202,7 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
   dfs <- eventReactive(input$process,{
     switch(file_type(),
            "baro" = {PROCESS_BARO(baro_file = input$file)},
-           "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username)},
+           "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username, userlocation = userlocation)},
            "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username)}
     )
   })
@@ -351,7 +351,7 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
     } else {
       switch(file_type(),
              "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Date Imported"),
-             "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
+             "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)", "Date Imported"),
              "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)", "Conductivity (uS/cm)")
       )
     }
@@ -365,7 +365,7 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
     req(try(df()))
     dt <- df()
     dt$DateTimeUTC <- as.character(format(dt$DateTimeUTC, format = "%Y-%m-%d %H:%M"))
-    datatable(dt,
+    datatable(dt[ ,c(1:4, 6 ,7 ,9 ,10)],
               colnames = dt_colnames(),
               options = list(pageLength = 50)) #%>%
     # formatDate(

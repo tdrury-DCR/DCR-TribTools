@@ -342,7 +342,7 @@ IMPORT_BARO <- function(df_baro, baro_file){
 # username <- "Dan Crocker"
 # stage <- 1.24 ### Enter stage at time of data download (Numeric entry in Shiny App
 
-PROCESS_HOBO <- function(hobo_txt_file, stage, username){
+PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   print(paste0("HOBO Data started processing at ", Sys.time()))
   
   ### Extract the location information from the Plot Title listed in the file
@@ -522,6 +522,12 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username){
   
   ### Convert F to C
   df_HOBO$Logger_temp_c <- round((df_HOBO$Logger_temp_f - 32) * 0.5556, digits = 2)
+  
+  if (userlocation == "Quabbin") { ### Add extra fields
+    df_HOBO <- df_HOBO %>% 
+      mutate(Weir_ft = NA_real_, Baro_psi = NA_real_, ImportDate = today())
+  }
+  
   df_HOBO <-  df_HOBO[, col_order]
   
   print(tail(hobo_prior, n = 10L))
@@ -530,7 +536,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username){
   
   df_HOBO <- select(df_HOBO, -Logger_temp_f)
   
-  if (location == "Wachusett") { ### Quabbin has no manual stage measurements to get 
+  if (userlocation == "Wachusett") { ### Quabbin has no manual stage measurements to get 
   ### Connect to db  #4 ## IMPORTANT - timezone set as UTC
   con <- dbConnect(odbc::odbc(),
                    .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
@@ -657,7 +663,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
   }
   
-  if(nrow(df_stage) > 0){
+  if(!is.null(df_stage)) {
     plot <- plot + 
       geom_point(data = df_stage, aes(x = SampleDateTime, y = FinalResult, color = "Stage (ft) - manual"), size = 1)
   }

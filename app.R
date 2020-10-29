@@ -148,7 +148,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   server <- function(input, output, session) {
     callModule(RATINGS, "mod_ratings_q", df_discharges = df_discharges, df_ratings = df_ratings)
     callModule(HOBO, "mod_hobos_q", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, 
-               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, ImportFlagTable = ImportFlagTable, username = username)
+               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, ImportFlagTable = ImportFlagTable, username = username, userlocation = userlocation)
     
     # Stop app when browser session window closes
     session$onSessionEnded(function() {
