@@ -91,7 +91,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
     callModule(RATINGS, "mod_ratings", df_discharges = df_discharges, df_ratings = df_ratings)
     callModule(HOBO, "mod_hobos", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db,
                baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, mayfly_data_dir = mayfly_data_dir,
-               mayfly_data_processed = mayfly_data_processed, ImportFlagTable = ImportFlagTable, username = username)
+               mayfly_data_processed = mayfly_data_processed, ImportFlagTable = ImportFlagTable, username = username, userlocation = userlocation)
     
     # Stop app when browser session window closes
     session$onSessionEnded(function() {
