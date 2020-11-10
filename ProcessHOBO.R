@@ -335,12 +335,12 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ### _____________________________________________________________________________________
 ###
 
-### List txt files for HOBO downloads to be processed
+# ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[1] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 1.24 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 1 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -549,7 +549,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
       filter(Location == loc,
              Parameter == "Staff Gauge Height",
              SampleDateTime > min(df_HOBO$DateTimeUTC),
-             SampleDateTime < max(df_HOBO$DateTimeUTC)) %>% 
+             SampleDateTime < max(df_HOBO$DateTimeUTC)) %>%
       select(c(Location, SampleDateTime, Parameter, FinalResult))
   } else {
     df_stage <-  NULL ### When Quabbin enters manual stage readings, the table name needs to replace NULL
@@ -576,6 +576,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   return(dfs)
 } ### End function
+
 # df_hobo <- df_HOBO
 # var2 = "Discharge"
 # dfs <- PROCESS_HOBO(hobo_txt_file, stage, username)
@@ -663,7 +664,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
   }
   
-  if(!is.null(df_stage)) {
+  if(!is.null(df_stage) & length(df_stage$ID) > 0) {
     plot <- plot + 
       geom_point(data = df_stage, aes(x = SampleDateTime, y = FinalResult, color = "Stage (ft) - manual"), size = 1)
   }
