@@ -59,9 +59,9 @@
 ### PROCESS_BARO function will import Barometric HOBO data to the Hydro Database
 
 ### List barometric txt files for HOBO downloads to be processed (pick mannually here, comment out if using in shiny app)
-baro_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+(_BARO_).*\\.txt$")
-baro_files ### Show the files
-baro_file <- baro_files[1] ### Pick a file
+# baro_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+(_BARO_).*\\.txt$")
+# baro_files ### Show the files
+# baro_file <- baro_files[1] ### Pick a file
 
 ### Utility to find gaps in barometric data ####
 
@@ -336,7 +336,7 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ###
 
 ### List txt files for HOBO downloads to be processed
-# hobo_txt_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
+# hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
 # hobo_txt_file <- hobo_txt_files[8] ### Pick a file
 # username <- "Dan Crocker"
