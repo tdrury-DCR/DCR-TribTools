@@ -71,7 +71,7 @@ baro_file <- baro_files[1] ### Pick a file
 # 
 # which(dfb$diff != 900)
 
-PROCESS_BARO <- function(baro_file){
+PROCESS_BARO <- function(baro_file, userlocation){
   print(paste0("Barometric HOBO Data started processing at ", Sys.time()))
   ### Extract the location information from the Plot Title listed in the file
   file <- paste0(updir,"/", baro_file)
@@ -338,7 +338,7 @@ IMPORT_BARO <- function(df_baro, baro_file){
 ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir,recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[1] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
 # username <- "Dan Crocker"
 # stage <- 1.24 ### Enter stage at time of data download (Numeric entry in Shiny App
 

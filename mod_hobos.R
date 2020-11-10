@@ -201,9 +201,9 @@ output$process.UI <- renderUI({
 # Run the function to process the data and return 2 dataframes and path as list
 dfs <- eventReactive(input$process,{
   switch(file_type(),
-         "baro" = {PROCESS_BARO(baro_file = input$file)},
-         "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username)},
-         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username)}
+         "baro" = {PROCESS_BARO(baro_file = input$file, userlocation = userlocation)},
+         "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username, userlocation = userlocation)},
+         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username, userlocation = userlocation)}
   )
 })
 
