@@ -7,12 +7,12 @@
 #  R version 3.5.3 (2019-03-11)  i386
 ##############################################################################.
 
-# mayfly_files <- list.files(mayfly_data_dir) %>% print()
-# mayfly_file <- mayfly_files[1]
+# mayfly_files <- list.files(config[16]) %>% print()
+# mayfly_file <- mayfly_files[2]
 # username <- "Dan Crocker"
-# stage <- 1.01 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# stage <- .90 ### Enter stage at time of data download (Numeric entry in Shiny App)
   
-PROCESS_MAYFLY <- function(mayfly_file, stage, username){
+PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
   
 print(paste0("Mayfly data started processing at ", Sys.time()))
   
