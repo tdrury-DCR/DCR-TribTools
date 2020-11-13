@@ -664,7 +664,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
   }
   
-  if(!is.null(df_stage)) {
+  if(!is.null(df_stage) && nrow(df_stage) > 0) {
     plot <- plot + 
       geom_point(data = df_stage, aes(x = SampleDateTime, y = FinalResult, color = "Stage (ft) - manual"), size = 1)
   }
