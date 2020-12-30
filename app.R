@@ -1,11 +1,12 @@
-###________________________________________________________________________________
-#     Title: app.r
-#     Description: Shiny web app to generate rating curves
-#     Written by: Dan Crocker
-#     Last Updated: October 30, 2018
-#     File Dependencies: Hobo_Rating_Configs.csv
-#
-###________________________________________________________________________________
+###############################  HEADER  ######################################
+#  TITLE: app.r
+#  DESCRIPTION: Shiny web app to generate rating curves
+#  AUTHOR(S): Dan Crocker
+#  DATE LAST UPDATED: 2020-12-30
+#  GIT REPO: 
+#  R version 3.5.3 (2019-03-11)  x86_64
+#  File Dependencies: Hobo_Rating_Configs.csv, LaunchTribTOOLS.R
+##############################################################################.
 
 ### UI #### 
 
@@ -21,38 +22,37 @@ ipak <- function(pkg){
 packages <- c("RODBC", "DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT",
               "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue")
 ipak(packages) 
+
 ### Set environment timezone
 # Sys.setenv(TZ='UTC')
-### Set db with Discharge and Rating Data ####
-db <- config[3]
-### Connect to Database #1
-con <- dbConnect(odbc::odbc(),
-                 .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                            paste0("DBQ=", db), "Uid=Admin;Pwd=;", sep = ";"),
-                 timezone = "America/New_York")
+
+### Connect to the DWSP database in SQL Server
+database <- "DCR_DWSP" 
+con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
 
 #Set user info
-user <-  Sys.getenv("USERNAME")
+user <-  Sys.getenv("USERNAME") %>% toupper()
 userdata <- readxl::read_xlsx(path = config[10])
-userdata <- userdata[userdata$Username %in% user,]
+userdata <- userdata[toupper(userdata$Username) %in% user,]
 username <- paste(userdata[2], userdata[1], sep = " ")
 userlocation <<- paste0(userdata[6])
 
 if (userlocation == "Wachusett") { ### WACHUSETT ####
+schema <- "Wachusett"
 
   ### RATING TOOL Function Args
   measurement_data <- config[9] ### Set the table name with discharges
   rating_data <- config[8] ### Get the rating information
-  df_discharges <- dbReadTable(con, measurement_data)
-  df_ratings <- dbReadTable(con, rating_data)  
+  df_discharges <- dbReadTable(con, Id(schema = schema, table = measurement_data))
+  df_ratings <- dbReadTable(con, Id(schema = schema, table = rating_data))  
   
-  dbDisconnect(con) #1
+  dbDisconnect(con)
   rm(con)
   
-  ### HOBO TOOL Funtion Args
+  ### HOBO TOOL Function Args
   hobo_path <<- config[1]
   updir <<- config[2]
-  hobo_db <<- db # Same as rating info - all in Hydro DB
+  hobo_db <<- "DCR_DWSP"
   baro_tbl <<- config[4]
   hobo_tbl <<- config[5]
   ImportFlagTable <<- config[6]
@@ -100,21 +100,23 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
     
   } # End Server 
   
-} else { ### QUABIN ####
+} else { ### QUABBIN ####
+  
+  schema <- "Quabbin"
   
   ### RATING TOOL Function Args
   measurement_data <- config[9] ### Set the table name with discharges
   rating_data <- config[8] ### Get the rating information
-  df_discharges <- dbReadTable(con, measurement_data)
-  df_ratings <- dbReadTable(con, rating_data)  
+  df_discharges <- dbReadTable(con, Id(schema = schema, table = measurement_data))
+  df_ratings <- dbReadTable(con, Id(schema = schema, table = rating_data))  
   
   dbDisconnect(con)
   rm(con)
   
-  ### HOBO TOOL Funtion Args
+  ### HOBO TOOL Function Args
   hobo_path <<- config[1]
   updir <<- config[2]
-  hobo_db <<- db # Same as rating info - all in Hydro DB
+  hobo_db <<- "DCR_DWSP" # Same as rating info - all in Hydro DB
   baro_tbl <<- config[4]
   hobo_tbl <<- config[5]
   ImportFlagTable <<- config[6]

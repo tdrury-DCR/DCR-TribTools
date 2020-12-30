@@ -295,9 +295,9 @@ output$import.UI <- renderUI({
 observeEvent(input$import, {
   out <- tryCatch(
     switch(file_type(),
-           "baro" = {IMPORT_BARO(df_baro = df(), baro_file = input$file)},
-           "hobo" = {IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), hobo_txt_file = input$file)},
-           "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), df_flags = df_flags(), mayfly_file = input$file)}
+           "baro" = {IMPORT_BARO(df_baro = df(), baro_file = input$file, userlocation = userlocation)},
+           "hobo" = {IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), hobo_txt_file = input$file, userlocation = userlocation)},
+           "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), df_flags = df_flags(), mayfly_file = input$file, userlocation = userlocation)}
     ),
     error = function(e) e)
   
@@ -308,7 +308,7 @@ observeEvent(input$import, {
     print(out)
     ImportStatus(paste0("Import Failed at ", Sys.time() ,". There was an error:\n", out))
   } else {
-    print(paste0("Successful import of", nrow(df()), " records in '", input$file, "' to Database at ", Sys.time()))
+    print(paste0("Successful import of ", nrow(df()), " records in '", input$file, "' to Database at ", Sys.time()))
     ImportStatus(paste0("Successful import of ", nrow(df()), " records from file: '", input$file, "' to Database at ", Sys.time()))
   }
   return(ImportFailed)

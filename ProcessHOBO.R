@@ -1,9 +1,11 @@
-###__________________________________________________________________________________________________________________________
-#     Title: ProcessHOBO.R
-#     Description: This script is used to process raw HOBO xlsx files and import data to the Hydro Database
-#     Written by: Dan Crocker
-#     Last Update: October 2018
-###__________________________________________________________________________________________________________________________
+###############################  HEADER  ######################################
+#  TITLE: ProcessHOBO.R
+#  DESCRIPTION: Process raw HOBO txt files and import data to the database
+#  AUTHOR(S): Dan Crocker
+#  DATE LAST UPDATED: 2020-12-30
+#  GIT REPO: 
+#  R version 3.5.3 (2019-03-11)  x86_64
+##############################################################################.
 
 # HOBO Workflow
 # 1. Collect HOBO data and relaunch in field (ensure logger names are correct, make sure stage values at time collected are noted)
@@ -52,6 +54,7 @@
 # user <-  Sys.getenv("USERNAME")
 # userdata <- readxl::read_xlsx(path = config[10])
 # username <- paste(userdata$FirstName[userdata$Username %in% user],userdata$LastName[userdata$Username %in% user],sep = " ")
+
 ###
 ### _____________________________________________________________________________________
 ###
@@ -113,13 +116,16 @@ PROCESS_BARO <- function(baro_file, userlocation){
   # baro$DateTimeUTC <- with_tz(baro$DateTimeUTC, UTC)
   
   ### Connect to db #1
-  con <- dbConnect(odbc::odbc(),
-                   .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                              paste0("DBQ=", hobo_db), "Uid=Admin;Pwd=;", sep = ";"),
-                   timezone = "UTC")
+  
+  database <- 'DCR_DWSP'
+  schema <- userlocation
+  tz <- 'UTC'
+  ### Connect to Database 
+  con <- dbConnect(odbc::odbc(), database, timezone = tz)
+  
   ### A function to fetch record IDs from the database table and assign record IDs to the new data
   setIDs <- function(){
-    qry <- dbGetQuery(con, paste0("SELECT max(ID) FROM ", baro_tbl))
+    qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{baro_tbl}]"))
     ### Get current max ID
     if(is.na(qry)) {
       qry <- 0
@@ -135,7 +141,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   baro$ID <- setIDs()
   
   ### Reorder columns to match db
-  col_order <- c(dbListFields(con, baro_tbl), "Logger_temp_f")
+  col_order <- c(dbListFields(con, schema_name = schema, name = baro_tbl), "Logger_temp_f")
   baro <-  baro[col_order]
   
   ### Get appropriate barometric file based on location
@@ -153,7 +159,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   
   ### Grab last 1 days records to plot with new data to check for missed data corrections
   t <- min(baro$DateTimeUTC)
-  baro_prior <- dbReadTable(con, baro_tbl) %>%
+  baro_prior <- dbReadTable(con, Id(schema = schema, table = baro_tbl)) %>%
     filter(Location %in% baro_grp, DateTimeUTC >= (t - 86400), DateTimeUTC < t)
   
   ### Convert C to F
@@ -175,6 +181,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   ### Disconnect from db and remove connection obj
   dbDisconnect(con) #1
   rm(con)
+  
   print(paste0("Barometric HOBO Data finished processing at ", Sys.time()))
   
   dfs <- list(
@@ -247,18 +254,18 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
     mult <- y1lim / abs(y2lim)
   
   plot  <- ggplot() +
-    geom_line(data = pd, aes(x = pd$DateTimeUTC, y = pd$Logger_temp_c * mult, color = y2col), size = 1) +
+    geom_line(data = pd, aes(x = DateTimeUTC, y = Logger_temp_c * mult, color = y2col), size = 1) +
     # text = paste("Date-Time: ", pd$DateTimeUTC, "<br>", "Temperature (C): ", pd$Logger_temp_c)), size = 0.5) +
-    geom_line(data = pd, aes(x = pd$DateTimeUTC, y = y1data, color = y1color), size = 1) 
+    geom_line(data = pd, aes(x = DateTimeUTC, y = y1data, color = y1color), size = 1) 
   # text = paste("Date-Time: ", pd$DateTimeUTC, "<br>", "Air Pressure (psi): ", pd$Logger_psi)), size = 1) 
   
   # Check for prior data to plot 
   if(isTRUE(prior)){
     plot <- plot +
-      geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Logger_temp_c * mult, color = y2prior_col), size = 1) +
+      geom_line(data = df_prior, aes(x = DateTimeUTC, y = Logger_temp_c * mult, color = y2prior_col), size = 1) +
       # text = paste("Date-Time: ", df_prior$DateTimeUTC, "<br>", "Temperature (C): ", df_prior$Logger_temp_c))) +#, size = 0.5) +
       
-      geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = y1prior, color = y1prior_col), size = 1) +
+      geom_line(data = df_prior, aes(x = DateTimeUTC, y = y1prior, color = y1prior_col), size = 1) +
       # text = paste("Date-Time: ", df_prior$DateTimeUTC, "<br>", "Air Pressure (psi): ", df_prior$Logger_psi))) + #, size = 1) +
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
   }
@@ -297,7 +304,7 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
 ### _____________________________________________________________________________________
 ###
 
-IMPORT_BARO <- function(df_baro, baro_file){
+IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   print(paste0("Barometric HOBO Data started importing at ", Sys.time()))
   loc <- str_split_fixed(baro_file, "_", n = 2) 
   loc <- loc[,1]
@@ -305,15 +312,18 @@ IMPORT_BARO <- function(df_baro, baro_file){
   hobo_file <- str_replace(file, "txt", "hobo")
   hobo_name <- str_replace(baro_file, "txt", "hobo")
   ### Import the data to the database - Need to use RODBC methods here.
-  con <-  odbcConnectAccess(hobo_db)
   
-  ColumnsOfTable <- sqlColumns(con, baro_tbl)
-  varTypes  <- as.character(ColumnsOfTable$TYPE_NAME)
-  sqlSave(con, df_baro, tablename = baro_tbl, append = T,
-          rownames = F, colnames = F, addPK = F , fast = T, varTypes = varTypes)
-  
+  ### CONNECT TO A FRONT-END DATABASE ####
+    ### Set DB
+    database <- 'DCR_DWSP'
+    schema <- userlocation
+    tz <- 'UTC'
+    ### Connect to Database 
+    con <- dbConnect(odbc::odbc(), 'DCR_DWSP', timezone = tz)
+
+  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{baro_tbl}")), value = df_baro, append = TRUE)
   ### Disconnect from db and remove connection obj
-  odbcCloseAll()
+  dbDisconnect(con)
   rm(con)
   
   ### Move the processed raw data file and hobo file to the appropriate processed folder
@@ -381,12 +391,13 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   }  
   
   ### Connect to db # 2  ## IMPORTANT - timezone set as UTC
-  con <- dbConnect(odbc::odbc(),
-                   .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                              paste0("DBQ=", hobo_db), "Uid=Admin;Pwd=;", sep = ";"),
-                   timezone = "UTC")
+  database <- 'DCR_DWSP'
+  schema <- userlocation
+  tz <- 'UTC'
+  ### Connect to Database 
+  con <- dbConnect(odbc::odbc(), 'DCR_DWSP', timezone = tz)
   
-  df_baro <- dbReadTable(con, baro_tbl)
+  df_baro <- dbReadTable(con, Id(schema = schema, table = baro_tbl))
   
   ### Disconnect from db and remove connection obj
   dbDisconnect(con) #2
@@ -439,15 +450,15 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     df_HOBO <- HOBOcalcQ(filename_db = hobo_db, loc = loc, df_HOBO = df2)
   }
   
-  
-  ### Connect to db #3
-  con <- dbConnect(odbc::odbc(),
-                   .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                              paste0("DBQ=", hobo_db), "Uid=Admin;Pwd=;", sep = ";"),
-                   timezone = "UTC")
+  ### Connect to db #3  ## IMPORTANT - timezone set as UTC
+  database <- 'DCR_DWSP'
+  schema <- userlocation
+  tz <- 'UTC'
+  ### Connect to Database 
+  con <- dbConnect(odbc::odbc(), 'DCR_DWSP', timezone = tz)
   ### Set record IDs
   setIDs <- function(){
-    qry <- dbGetQuery(con, paste0("SELECT max(ID) FROM ", hobo_tbl))
+    qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_tbl}]"))
     ### Get current max ID
     if(is.na(qry)) {
       qry <- 0
@@ -474,7 +485,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     }
     
     if(!is.na(df_flags)){
-      query.flags <- dbGetQuery(con, paste0("SELECT max(ID) FROM ", ImportFlagTable))
+      query.flags <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{ImportFlagTable}]"))
       # Get current max ID
       if(is.na(query.flags)) {
         query.flags <- 0
@@ -489,9 +500,10 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
       df_flags$DataTableName <- hobo_tbl
       df_flags$DateFlagged <-  Sys.Date()
       df_flags$ImportStaff <-  username
+      df_flags$Comment <- "Flags generated during data import"
       
       # Reorder df_flags columns to match the database table exactly # Add code to Skip if no df_flags
-      df_flags <- df_flags[,c(3,4,1,2,5,6)]
+      df_flags <- df_flags[,c(3,4,1,2,5,6,7)]
     } else { # Condition TRUE - All FlagCodes are NA, thus no df_flags needed, assign NA
       df_flags <- NA
     } # End flags processing chunk
@@ -499,13 +511,15 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   df_flags <- setFlagIDs()
   
   ### Reorder and select columns to match db
-  col_order <- c(dbListFields(con, hobo_tbl), "Logger_temp_f")
+  col_order <- c(dbListFields(con, schema_name = schema, name = hobo_tbl), "Logger_temp_f")
   
   ### Grab last 1 days records to plot with new data to check for missed data corrections
   t <- min(df_HOBO$DateTimeUTC)
-  hobo_prior <- dbReadTable(con, hobo_tbl) 
+  hobo_prior <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+    
   # hobo_prior$DateTimeUTC <-  force_tz(hobo_prior$DateTimeUTC, tzone = "UTC") 
-  hobo_prior <- filter(hobo_prior, Location == loc, DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
+  hobo_prior <- filter(hobo_prior, DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
     arrange(DateTimeUTC)
   
   if(nrow(hobo_prior) > 0){
@@ -538,19 +552,24 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   if (userlocation == "Wachusett") { ### Quabbin has no manual stage measurements to get 
   ### Connect to db  #4 ## IMPORTANT - timezone set as UTC
-  con <- dbConnect(odbc::odbc(),
-                   .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                              paste0("DBQ=", wave_db), "Uid=Admin;Pwd=;", sep = ";"),
-                   timezone = "America/New_York")
+    database <- 'DCR_DWSP'
+    schema <- userlocation
+    tz <- 'America/New_York'
+    ### Connect to Database 
+    con <- dbConnect(odbc::odbc(), database, timezone = tz)
   
   if (userlocation == "Wachusett") {
-    df_stage <- dbReadTable(con,"tblWQALLDATA")
+    df_stage  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
+                                  FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Staff Gauge Height'
+                                  AND [Location] = '{loc}'"))
+      
+
+      
     df_stage <- df_stage %>% 
-      filter(Location == loc,
-             Parameter == "Staff Gauge Height",
-             SampleDateTime > min(df_HOBO$DateTimeUTC),
-             SampleDateTime < max(df_HOBO$DateTimeUTC)) %>%
-      select(c(Location, SampleDateTime, Parameter, FinalResult))
+      filter(DateTimeET > min(df_HOBO$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+             DateTimeET < max(df_HOBO$DateTimeUTC)
+             )
+    
   } else {
     df_stage <-  NULL ### When Quabbin enters manual stage readings, the table name needs to replace NULL
   }
@@ -652,7 +671,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
   
   mult <- y1lim / abs(y2lim)
   
-  plot  <- ggplot(pd, aes(x = pd$DateTimeUTC)) +
+  plot  <- ggplot(pd, aes(x = DateTimeUTC)) +
     geom_line(aes(y = y1data, color = y1color), size = 1)  +
     geom_line(aes(y = y2data * mult, color = y2col), size = 1)
   
@@ -704,7 +723,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
 ### _____________________________________________________________________________________
 ###
 
-IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file){
+IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   print(paste0("HOBO Data started importing at ", Sys.time()))
   loc <- str_split_fixed(hobo_txt_file, "_", n = 2) 
   loc <- loc[,1]
@@ -713,24 +732,22 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file){
   if(loc == "SYW177"){
     hobo_tbl <- "tbl_HOBO_WELLS"
   }
-  ### Import the data to the database - Need to use RODBC methods here.
-  con <-  odbcConnectAccess(hobo_db)
-  
-  ColumnsOfTable <- sqlColumns(con, hobo_tbl)
-  varTypes  <- as.character(ColumnsOfTable$TYPE_NAME)
-  sqlSave(con, df_hobo, tablename = hobo_tbl, append = T,
-          rownames = F, colnames = F, addPK = F , fast = F, varTypes = varTypes)
-  
+  ### Import the data to the database
+  database <- 'DCR_DWSP'
+  schema <- 'Wachusett'
+  tz <- 'UTC'
+  ### Connect to Database 
+  con <- dbConnect(odbc::odbc(), database, timezone = tz)
+  ### Write data
+  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_tbl}")), value = df_hobo, append = TRUE)
+
   # Flag data
   if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
     print("Importing flags...")
-    ColumnsOfTable <- sqlColumns(con, ImportFlagTable)
-    varTypes  <- as.character(ColumnsOfTable$TYPE_NAME)
-    sqlSave(con, df_flags, tablename = ImportFlagTable, append = T,
-            rownames = F, colnames = F, addPK = F , fast = F, varTypes = varTypes)
+    odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
   }
   # Disconnect from db and remove connection obj
-  odbcCloseAll()
+  dbDisconnect(con)
   rm(con)
   
   ### Move the processed raw data file and hobo file to the appropriate processed folder

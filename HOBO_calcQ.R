@@ -17,32 +17,33 @@
 # library(lubridate)
 # library(magrittr)
 
-HOBOcalcQ <- function(filename_db, loc, df_HOBO) {
+HOBOcalcQ <- function(schema, loc, df_HOBO, df_ratings) {
 
   # Set odbc connection  and get the rating table
-  con <-  odbcConnectAccess(filename_db)
-  ratings <- sqlFetch(con, "tblRatings")
+  database <- "DCR_DWSP" 
+  con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
+  ratings <- dbReadTable(con, Id(schema = schema, table = "tblRatings"))
 
   # Disconnect from db and remove connection obj
-  RODBC::odbcCloseAll()
+  dbDisconnect(con)
   rm(con)
   # Assigntoday's date as the end date for ratings that are still valid - so that date test won't compare against NA values
   now <- format(Sys.time(), "%Y-%m-%d")
   maxtime <- max(df_HOBO$DateTimeUTC) + hours(5)
-  ratings$End[is.na(ratings$End)] <- maxtime %>% ceiling_date("day") %>% as_date()
+  ratings$DateTimeEndET[is.na(ratings$DateTimeEndET)] <- maxtime %>% ceiling_date("day") %>% as_date()
 
   ### Check the location to make sure there is a valid rating:
   if(loc %in% ratings$MWRA_Loc){ # IF true then a rating exists
 
     # Reduce rating table to locations within dataset and remove ratings with unspecified start times
-    ratings2 <- ratings[ratings$MWRA_Loc %in% loc & !is.na(ratings$Start),]
+    ratings2 <- ratings[ratings$MWRA_Loc %in% loc & !is.na(ratings$DateTimeStartET),]
 
     # For each stage value assign the appropriate rating number based on the date ranges of the ratings
     x <- as_date(df_HOBO$DateTimeUTC)
     y <- loc
 
     pickRating <- function(x,y){
-      ratingNo <- ratings2$ID[ratings2$Start <= x & ratings2$End >= x & ratings2$MWRA_Loc == y]
+      ratingNo <- ratings2$ID[ratings2$DateTimeStartET <= x & ratings2$DateTimeEndET >= x & ratings2$MWRA_Loc == y]
     }
 
     df_HOBO$ratingNo <- map2(x, y, pickRating) %>%

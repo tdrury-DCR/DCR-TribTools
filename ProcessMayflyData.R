@@ -8,9 +8,9 @@
 ##############################################################################.
 
 # mayfly_files <- list.files(config[16]) %>% print()
-# mayfly_file <- mayfly_files[2]
+# mayfly_file <- mayfly_files[4]
 # username <- "Dan Crocker"
-# stage <- .90 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# stage <- 1.26 ### Enter stage at time of data download (Numeric entry in Shiny App)
   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
   
@@ -42,18 +42,16 @@ df$DateTimeUTC <- as_datetime(df$DateTimeUTC, tz = "UTC")
 ### Convert Stage from mm to ft
 df$Stage_ft <- df$Stage_ft/304.8
 
-
 ### Connect to db in UTC time
-con <- dbConnect(odbc::odbc(),
-                 .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                            paste0("DBQ=", hobo_db), "Uid=Admin;Pwd=;", sep = ";"),
-                 timezone = "UTC")
-
+database <- "DCR_DWSP"
+con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+schema <- userlocation                 
 mayfly_tbl <- "tblMayfly"
 
 ### A function to fetch record IDs from the database table and assign record IDs to the new data
 setIDs <- function(){
-  qry <- dbGetQuery(con, paste0("SELECT max(ID) FROM ", mayfly_tbl))
+  qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{mayfly_tbl}]"))
+  
   ### Get current max ID
   if(is.na(qry)) {
     qry <- 0
@@ -83,7 +81,7 @@ df$Stage_ft <- round(df$Stage_ft + offset, digits = 2)
 
 source("HOBO_calcQ.R")
   ### Calcualte all discharges and save df
-  df <- HOBOcalcQ(filename_db = hobo_db, loc = loc, df_HOBO = df)
+  df <- HOBOcalcQ(schema = "Wachusett", loc = loc, df_HOBO = df)
 
 ### Make a flag df if there are any discharge related flags (only above/below rating curve can be automatically calculated)
 setFlagIDs <- function(){
@@ -93,7 +91,7 @@ setFlagIDs <- function(){
       rename("SampleID" = ID, "FlagCode" = RatingFlag) %>%
       drop_na()
     
-    query.flags <- dbGetQuery(con, paste0("SELECT max(ID) FROM ", ImportFlagTable))
+    query.flags <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{ImportFlagTable}]"))
     # Get current max ID
     if(is.na(query.flags)) {
       query.flags <- 0
@@ -108,9 +106,10 @@ setFlagIDs <- function(){
     df_flags$DataTableName <- mayfly_table
     df_flags$DateFlagged <-  Sys.Date()
     df_flags$ImportStaff <-  username
+    df_flags$Comment <- "Flags generated during data import"
     
     # Reorder df_flags columns to match the database table exactly # Add code to Skip if no df_flags
-    df_flags <- df_flags[,c(3,4,1,2,5,6)]
+    df_flags <- df_flags[,c(3,4,1,2,5,6,7)]
 
   } else {
     df_flags <- NA
@@ -121,32 +120,34 @@ df_flags <- setFlagIDs()
 ### df_Stage ####
 
 ### Connect to db  in America/New_York tz
-con <- dbConnect(odbc::odbc(),
-                 .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                            paste0("DBQ=", wave_db), "Uid=Admin;Pwd=;", sep = ";"),
-                 timezone = "America/New_York") ## IMPORTANT - timezone automatically converted to UTC
-df_stage <- dbReadTable(con,"tblWQALLDATA")
+con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
+
+df_stage <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
+                                  FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Staff Gauge Height'
+                                  AND [Location] = '{loc}'"))
+### Disconnect from db and remove connection obj
+dbDisconnect(con)
+rm(con)
 
 df_stage <- df_stage %>% 
-  filter(Location == loc,
-         Parameter == "Staff Gauge Height",
-         SampleDateTime > min(df$DateTimeUTC),
-         SampleDateTime < max(df$DateTimeUTC)) %>% 
-  select(c(Location, SampleDateTime, Parameter, FinalResult))
+  filter(DateTimeET > min(df$DateTimeUTC),
+         DateTimeET < max(df$DateTimeUTC))
 
 ### df_prior ####
 
 ### Grab last 1 days records to plot with new data to check for missed data corrections
 t <- min(df$DateTimeUTC)
-mayfly_prior <- dbReadTable(con, mayfly_tbl) 
+con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+
+mayfly_prior <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+  
 # hobo_prior$DateTimeUTC <-  force_tz(hobo_prior$DateTimeUTC, tzone = "UTC") 
 mayfly_prior <- filter(mayfly_prior, Location == loc, DateTimeUTC >= (t - 86400), DateTimeUTC < t)
 
-
 ### Reorder columns to match db
-col_order <- c(dbListFields(con, mayfly_tbl))
+col_order <- c(dbListFields(con, schema_name = schema, name = mayfly_tbl))
 df <-  df[col_order]
-
 
 ### Disconnect from db and remove connection obj
 dbDisconnect(con)
@@ -256,15 +257,15 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
 # df_mayfly <- dfs[[1]]
 # df_stage <- dfs[[4]]
 # df_prior <- dfs[[3]]
-# var2 <- "Conductivity"
-# 
+# var2 <- "Temperature"
+# # 
 # plot <- PREVIEW_MAYFLY(df_mayfly = df_mayfly, df_stage = df_stage, df_prior = df_prior, var2 = var2)
 # plot
 # Comment out if running in shiny
 # df_mayfly <- PROCESS_HOBO(hobo_file = hobo_file, stage = stage)
 
 
-IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file){
+IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   print(paste0("Mayfly Data started importing at ", Sys.time()))
   
   file <- paste0(mayfly_data_dir,"/", mayfly_file)
@@ -272,27 +273,22 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file){
   loc <- str_split_fixed(mayfly_file, "MF_", n = 2) 
   loc <- loc[,1]
   
-mayfly_tbl <- "tblMayfly"
-  ### Import the data to the database - Need to use RODBC methods here.
-  con <-  odbcConnectAccess(wave_db)
+  mayfly_tbl <- "tblMayfly"
   
-  ColumnsOfTable <- sqlColumns(con, mayfly_tbl)
-  varTypes  <- as.character(ColumnsOfTable$TYPE_NAME)
-  sqlSave(con, df_mayfly, tablename = mayfly_tbl, append = T,
-          rownames = F, colnames = F, addPK = F , fast = T, varTypes = varTypes)
+  database <- "DCR_DWSP" 
+  schema <- userlocation
+  con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{mayfly_tbl}")), value = df_mayfly, append = TRUE)
   
   # Flag data
   if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
     print("Importing flags...")
-    ColumnsOfTable <- sqlColumns(con, ImportFlagTable)
-    varTypes  <- as.character(ColumnsOfTable$TYPE_NAME)
-    sqlSave(con, df_flags, tablename = ImportFlagTable, append = T,
-            rownames = F, colnames = F, addPK = F , fast = F, varTypes = varTypes)
+    odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
   } else {
     print("No flags to import")
   }
   # Disconnect from db and remove connection obj
-  odbcCloseAll()
+  dbDisconnect(con)
   rm(con)
   
   ### Move the processed raw mayfly data file to the appropriate processed folder

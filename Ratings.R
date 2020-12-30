@@ -1,9 +1,11 @@
-###____________________________________________________________________________________
-#     Title: Ratings.R
-#     Description: This script gathered stage and discharge data to make rating curves
-#     Written by: Dan Crocker
-#     Last Updated: Summer, 2018
-###____________________________________________________________________________________
+###############################  HEADER  ######################################
+#  TITLE: Ratings.R
+#  DESCRIPTION: This script uses stage and discharge data to make rating curves
+#  AUTHOR(S): Dan Crocker
+#  DATE LAST UPDATED: 2020-12-30
+#  GIT REPO: 
+#  R version 3.5.3 (2019-03-11)  x86_64
+##############################################################################.
 
 # library(tidyverse)
 # library(RODBC)
@@ -30,21 +32,21 @@
 ### Get data configs from Launch File ####
 # # 
 # ### Set db for connection ####
-# db <- config[3]
-# 
-# ### Connect to Database ####
-# con <- dbConnect(odbc::odbc(),
-#                  .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-#                                             paste0("DBQ=", db), "Uid=Admin;Pwd=;", sep = ";"),
-#                  timezone = "America/New_York")
-# #
-# # ### FUNCTION ARGS ####
-# tbl_discharges <- dbReadTable(con,"tblDischargeMeasurements")
-# tbl_ratings <- dbReadTable(con,"tblRatings")
-# #
+### CONNECT TO A FRONT-END DATABASE ####
+  # ### Set DB
+  # database <- 'DCR_DWSP'
+  # schema <- 'Wachusett'
+  # tz <- 'America/New_York'
+  # ### Connect to Database 
+  # con <- dbConnect(odbc::odbc(), database, timezone = tz)
+  # 
+
+# tbl_ratings <- dbReadTable(con, Id(schema = schema, table = 'tblRatings'))
+# tbl_discharges <- dbReadTable(con, Id(schema = schema, table = 'tblDischargeMeasurements'))
 # dbDisconnect(con)
 # rm(con)
-# 
+  
+# ### FUNCTION ARGS ####
 # locs <- unique(tbl_discharges$Location)
 # locs # Look at the locations
 # loc <- locs[4] # Pick a location
@@ -74,7 +76,7 @@ quality <- c("Fair" = 70, "Good" = 85, "Excellent" = 100, "Poor" = 0)
   
 loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
 
-current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
+current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), IsCurrent == TRUE)
 active_rating <- current_rating$RatingNum
 
 if(is.null(new_rating)){
@@ -116,7 +118,7 @@ data1 <- data1 %>%
 
 # Q = C*(h-a)^n, where C is a constant, h is head, a is an offset (pzf) and n is an exponent
 
-gaugings <- data1[,c("Stage_ft","Discharge_cfs","MeasurementNumber","Measurement_Rated", "DateTimeStart")]
+gaugings <- data1[,c("Stage_ft","Discharge_cfs","MeasurementNumber","Measurement_Rated", "DateTimeStartET")]
 names(gaugings) <- c("stage", "discharge","num","Measurement_Rated", "DateTimeStart")
 
 ### Assign parts for rating ####
@@ -466,7 +468,7 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
   
   loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
   
-  current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
+  current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), IsCurrent == TRUE)
   active_rating <- current_rating$RatingNum
   
   new_rating <- active_rating
@@ -557,15 +559,14 @@ PLOT_RATING <- function(tbl_discharges, tbl_ratings, loc, ratingNo){
 tbl_ratings <- tbl_ratings %>% 
     mutate(RatingDatumOffset = ifelse(is.na(RatingDatumOffset), 0, RatingDatumOffset))
   
-  quality <- c("Fair" = 70, "Good" = 85, "Excellent" = 100, "Poor" = 0)
-  
-  loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
-  
-rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
+quality <- c("Fair" = 70, "Good" = 85, "Excellent" = 100, "Poor" = 0)
   
 loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
+  
+rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), IsCurrent == TRUE)
+  
+current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), IsCurrent == TRUE)
 
-current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), Current == TRUE)
 active_rating <- current_rating$RatingNum
 
 new_rating <- ratingNo
