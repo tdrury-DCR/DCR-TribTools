@@ -447,7 +447,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     print(head(hobo_tbl))
   } else {
     ### Calcualte all discharges and save df2 to a new df with discharge info
-    df_HOBO <- HOBOcalcQ(filename_db = hobo_db, loc = loc, df_HOBO = df2)
+    df_HOBO <- HOBOcalcQ(schema = schema, loc = loc, df_HOBO = df2)
   }
   
   ### Connect to db #3  ## IMPORTANT - timezone set as UTC

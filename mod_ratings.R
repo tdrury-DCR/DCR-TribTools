@@ -131,12 +131,12 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
   
   output$discharges <- renderDataTable({
     datatable(df_discharges) %>%
-      formatDate(columns = c("DateTimeStart","DateTimeEnd"), method = 'toLocaleString')
+      formatDate(columns = c("DateTimeStartET","DateTimeEndET"), method = 'toLocaleString')
   })
     
   output$ratings <- renderDataTable({
     datatable(df_ratings) %>%
-      formatDate(columns = c("Start","End"), method = 'toLocaleString')
+      formatDate(columns = c("DateTimeStartET","DateTimeEndET"), method = 'toLocaleString')
   })
 
   ### Remove Rating measurements ####

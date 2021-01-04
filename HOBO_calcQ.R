@@ -17,13 +17,13 @@
 # library(lubridate)
 # library(magrittr)
 
-HOBOcalcQ <- function(schema, loc, df_HOBO, df_ratings) {
+HOBOcalcQ <- function(schema, loc, df_HOBO) {
 
   # Set odbc connection  and get the rating table
-  database <- "DCR_DWSP" 
+  database <- "DCR_DWSP"
   con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
   ratings <- dbReadTable(con, Id(schema = schema, table = "tblRatings"))
-
+  
   # Disconnect from db and remove connection obj
   dbDisconnect(con)
   rm(con)
