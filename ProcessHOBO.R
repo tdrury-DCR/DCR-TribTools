@@ -685,7 +685,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, var2 = NULL)
   
   if(!is.null(df_stage) && nrow(df_stage) > 0) {
     plot <- plot + 
-      geom_point(data = df_stage, aes(x = SampleDateTime, y = FinalResult, color = "Stage (ft) - manual"), size = 1)
+      geom_point(data = df_stage, aes(x = DateTimeET, y = FinalResult, color = "Stage (ft) - manual"), size = 1)
   }
   
   if(loc == "SYW177"){
