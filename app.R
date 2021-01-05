@@ -43,8 +43,8 @@ schema <- "Wachusett"
   ### RATING TOOL Function Args
   measurement_data <- config[9] ### Set the table name with discharges
   rating_data <- config[8] ### Get the rating information
-  df_discharges <- dbReadTable(con, Id(schema = schema, table = measurement_data))
-  df_ratings <- dbReadTable(con, Id(schema = schema, table = rating_data))  
+  df_discharges <<- dbReadTable(con, Id(schema = schema, table = measurement_data))
+  df_ratings <<- dbReadTable(con, Id(schema = schema, table = rating_data))  
   
   dbDisconnect(con)
   rm(con)

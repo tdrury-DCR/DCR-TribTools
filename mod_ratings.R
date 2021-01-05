@@ -87,8 +87,8 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
     substr(x, nchar(x)-n+1, nchar(x))
   }
   
-  df_discharges[,c(4:5)] <- with_tz(df_discharges[,c(4:5)], tzone = "America/New_York")
-  df_ratings[,c(9:10)] <- with_tz(df_ratings[,c(9:10)] , tzone = "America/New_York")
+  df_discharges[,c(4:5)] <- force_tz(df_discharges[,c(4:5)], tzone = "America/New_York")
+  df_ratings[,c(9:10)] <- force_tz(df_ratings[,c(9:10)] , tzone = "America/New_York")
   
   source("Ratings.R", local = T) #### Source the rating functions
 

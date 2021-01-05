@@ -119,7 +119,7 @@ data1 <- data1 %>%
 # Q = C*(h-a)^n, where C is a constant, h is head, a is an offset (pzf) and n is an exponent
 
 gaugings <- data1[,c("Stage_ft","Discharge_cfs","MeasurementNumber","Measurement_Rated", "DateTimeStartET")]
-names(gaugings) <- c("stage", "discharge","num","Measurement_Rated", "DateTimeStart")
+names(gaugings) <- c("stage", "discharge","num","Measurement_Rated", "DateTimeStartET")
 
 ### Assign parts for rating ####
 if(break2 > 0){
@@ -404,7 +404,7 @@ p <- ggplot() +
                                   text = paste("Meas.No:", num, "<br>",
                                                "Stage:", stage, "<br>",
                                                "Discharge:",discharge,"<br>",
-                                               "Date:", as_date(DateTimeStart),"<br>",
+                                               "Date:", as_date(DateTimeStartET),"<br>",
                                                "Quality:", Measurement_Rated))) +
   geom_line(data = df_Q, aes(Q,stage), color = "red") +
   geom_line(data = df_Q, aes(lower,stage), color = "blue4", linetype = 3) +
@@ -522,7 +522,7 @@ PLOT_MEASUREMENTS <- function(tbl_discharges, tbl_ratings, loc){
                                 text = paste("Meas.No:", MeasurementNumber, "<br>",
                                              "Stage:", Stage_ft, "<br>",
                                              "Discharge:", Discharge_cfs,"<br>",
-                                             "Date:", as_date(DateTimeStart),"<br>",
+                                             "Date:", as_date(DateTimeStartET),"<br>",
                                              "Quality:", Measurement_Rated))) + 
     scale_x_continuous(name = "Discharge (cfs)",limits = c(xmin,xmax)) +
     scale_y_continuous(name = "Stage (ft)", limits = c(ymin,ymax)) +
@@ -720,7 +720,7 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
                                    text = paste("Meas.No:", MeasurementNumber, "<br>",
                                                 "Stage:", Stage_ft, "<br>",
                                                 "Discharge:",Discharge_cfs,"<br>",
-                                                "Date:", as_date(DateTimeStart),"<br>",
+                                                "Date:", as_date(DateTimeStartET),"<br>",
                                                 "Quality:", Measurement_Rated)))
   }
 
