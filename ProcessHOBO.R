@@ -373,6 +373,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   ### Round to 2 decimals
   df[,2] <- round(df[,2], digits = 4)
   df[,3] <- round(df[,3], digits = 2)
+  
   ### TIMEZONE TROUBLESHOOTING - RESOLVED BY USING UTC DATA OUTPUT AND WRITING DATA TO DB WITH UTC TIMEZONE
   # ### Force the Data time zone (Outputs in local time)
   # df$DateTimeUTC <-  force_tz(df$DateTimeUTC, tzone = "America/New_York")
@@ -455,7 +456,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   schema <- userlocation
   tz <- 'UTC'
   ### Connect to Database 
-  con <- dbConnect(odbc::odbc(), 'DCR_DWSP', timezone = tz)
+  con <- dbConnect(odbc::odbc(), database, timezone = tz)
   ### Set record IDs
   setIDs <- function(){
     qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_tbl}]"))
@@ -544,9 +545,9 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   df_HOBO <-  df_HOBO[, col_order]
   
-  print(tail(hobo_prior, n = 10L))
-  print(head(df_HOBO, n = 10L))
-  print(head(df_flags, n = 10L))
+  print(tail(hobo_prior, n = 10))
+  print(head(df_HOBO, n = 10))
+  print(head(df_flags, n = 10))
   
   df_HOBO <- select(df_HOBO, -Logger_temp_f)
   

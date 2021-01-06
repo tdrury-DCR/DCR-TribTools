@@ -26,9 +26,7 @@ ipak(packages)
 ### Set environment timezone
 # Sys.setenv(TZ='UTC')
 
-### Connect to the DWSP database in SQL Server
-database <- "DCR_DWSP" 
-con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+
 
 #Set user info
 user <-  Sys.getenv("USERNAME") %>% toupper()
@@ -39,6 +37,9 @@ userlocation <<- paste0(userdata[6])
 
 if (userlocation == "Wachusett") { ### WACHUSETT ####
 schema <- "Wachusett"
+### Connect to the DWSP database in SQL Server
+database <- "DCR_DWSP" 
+con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
 
   ### RATING TOOL Function Args
   measurement_data <- config[9] ### Set the table name with discharges
@@ -101,14 +102,26 @@ schema <- "Wachusett"
   } # End Server 
   
 } else { ### QUABBIN ####
+ 
+  ### Connect to the DWSP database in SQL Server 
+  # schema <- "Quabbin"
+  # database <- "DCR_DWSP" 
+  # con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
   
-  schema <- "Quabbin"
+  database <- config[3]
+  ### Connect to Database #1
+  con <- dbConnect(odbc::odbc(),
+                   .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
+                                              paste0("DBQ=", database), "Uid=Admin;Pwd=;", sep = ";"),
+                   timezone = "America/New_York")
   
   ### RATING TOOL Function Args
   measurement_data <- config[9] ### Set the table name with discharges
   rating_data <- config[8] ### Get the rating information
-  df_discharges <- dbReadTable(con, Id(schema = schema, table = measurement_data))
-  df_ratings <- dbReadTable(con, Id(schema = schema, table = rating_data))  
+  # df_discharges <- dbReadTable(con, Id(schema = schema, table = measurement_data))
+  # df_ratings <- dbReadTable(con, Id(schema = schema, table = rating_data))  
+  df_discharges <- dbReadTable(con, measurement_data)
+  df_ratings <- dbReadTable(con, rating_data)
   
   dbDisconnect(con)
   rm(con)
@@ -116,7 +129,7 @@ schema <- "Wachusett"
   ### HOBO TOOL Function Args
   hobo_path <<- config[1]
   updir <<- config[2]
-  hobo_db <<- "DCR_DWSP" # Same as rating info - all in Hydro DB
+  hobo_db <<- database # Same as rating info - all in Hydro DB
   baro_tbl <<- config[4]
   hobo_tbl <<- config[5]
   ImportFlagTable <<- config[6]
