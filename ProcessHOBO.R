@@ -171,8 +171,8 @@ PROCESS_BARO <- function(baro_file, userlocation){
   # baro_prior$DateTimeUTC <- force_tz(baro_prior$DateTimeUTC, tzone = "UTC")
   
   ### Print to compare tail and head of consecutive records
-  print(tail(baro_prior, n = 10))
-  print(head(baro, n=10))
+  # print(tail(baro_prior, n = 10))
+  # print(head(baro, n=10))
   baro <- select(baro, -Logger_temp_f)
   
   if(nrow(baro_prior) == 0) {
@@ -327,7 +327,7 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   rm(con)
   
   ### Move the processed raw data file and hobo file to the appropriate processed folder
-  dir <- paste0(hobo_path, "/Imported/", loc)
+  dir <- paste0(hobo_path, loc)
  
   if(!dir.exists(dir)) {
     dir.create(dir)
@@ -545,11 +545,16 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   df_HOBO <-  df_HOBO[, col_order]
   
-  print(tail(hobo_prior, n = 10))
-  print(head(df_HOBO, n = 10))
-  print(head(df_flags, n = 10))
+  # print(tail(hobo_prior, n = 10))
   
-  df_HOBO <- select(df_HOBO, -Logger_temp_f)
+  # print(glue("Structure: {str(df_HOBO)}"))
+  # print(glue("Class: {class(df_HOBO)}"))
+  # print(glue("Number of Rows: {nrow(df_HOBO)}"))
+  # 
+  # print(head(df_HOBO, n = 10))
+  # print(head(df_flags, n = 10))
+  
+  df_HOBO <- dplyr::select(df_HOBO, -Logger_temp_f)
   
   if (userlocation == "Wachusett") { ### Quabbin has no manual stage measurements to get 
   ### Connect to db  #4 ## IMPORTANT - timezone set as UTC
