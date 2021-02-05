@@ -11,7 +11,7 @@
 # mayfly_file <- mayfly_files[4]
 # username <- "Dan Crocker"
 # stage <- 1.26 ### Enter stage at time of data download (Numeric entry in Shiny App)
-  
+#   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
   
 print(paste0("Mayfly data started processing at ", Sys.time()))
@@ -167,7 +167,7 @@ return(dfs)
 
 ### Run funciton locally, comment out when deployed in Shiny
 
-# dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = 1.44, username = "Dan Crocker")
+# dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = 1.26, username = "Dan Crocker", userlocation = userlocation)
 
 
 PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = NULL) {
@@ -210,20 +210,20 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
   
   mult <- y1lim / abs(y2lim)
   
-  plot  <- ggplot(pd, aes(x = pd$DateTimeUTC)) +
-    geom_line(aes(y = pd$Stage_ft, color = "Stage (ft)"), size = 1)  
+  plot  <- ggplot(pd, aes(x = DateTimeUTC)) +
+    geom_line(aes(y = Stage_ft, color = "Stage (ft)"), size = 1)  
   
   plot <- switch (var2,
-        "Temperature" = plot + geom_line(aes(y = pd$Logger_temp_c * mult, color = "Water Temperature (C)"), size = 1),
-        "Conductivity" = plot + geom_line(aes(y = pd$Conductivity_uScm * mult, color = "Conductivity (uS/cm)"), size = 1),
-        "Discharge" = plot + geom_line(aes(y = pd$Discharge_cfs * mult, color = "Discharge (cfs)"), size = 1)
+        "Temperature" = plot + geom_line(aes(y = Logger_temp_c * mult, color = "Water Temperature (C)"), size = 1),
+        "Conductivity" = plot + geom_line(aes(y = Conductivity_uScm * mult, color = "Conductivity (uS/cm)"), size = 1),
+        "Discharge" = plot + geom_line(aes(y = Discharge_cfs * mult, color = "Discharge (cfs)"), size = 1)
     )
 
   # Check for prior data to plot 
   if(isTRUE(prior)){
     plot <- plot +  
-      geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Stage_ft, color = "Stage (ft) - prior"), size = 1) +
-      geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
+      geom_line(data = df_prior, aes(x = DateTimeUTC, y = Stage_ft, color = "Stage (ft) - prior"), size = 1) +
+      geom_vline(xintercept = min(DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
 
   plot <- switch (var2,
       "Temperature" = plot + geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Logger_temp_c * mult, color = "Water Temperature (C) - prior"), size = 1),
@@ -233,8 +233,8 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
   }
   if(nrow(df_stage) > 0){
     plot <- plot + 
-      geom_point(data = df_stage, aes(x = DateTimeUTC, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
-  }
+      geom_point(data = df_stage, aes(x = DateTimeET, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
+  } ### NOTE Manual stage gets converted to UTC during import, so it is plotted correctly on the x-axis in UTC time along with sensor data
   plot <- plot +    
     scale_y_continuous(breaks = pretty_breaks(),limits = c(0, 1.2 * y1lim), 
                        sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = var2)) +
@@ -258,7 +258,6 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
 # df_stage <- dfs[[4]]
 # df_prior <- dfs[[3]]
 # var2 <- "Temperature"
-# # 
 # plot <- PREVIEW_MAYFLY(df_mayfly = df_mayfly, df_stage = df_stage, df_prior = df_prior, var2 = var2)
 # plot
 # Comment out if running in shiny
