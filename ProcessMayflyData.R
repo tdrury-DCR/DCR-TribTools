@@ -233,7 +233,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
   }
   if(nrow(df_stage) > 0){
     plot <- plot + 
-      geom_point(data = df_stage, aes(x = SampleDateTime, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
+      geom_point(data = df_stage, aes(x = DateTimeUTC, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
   }
   plot <- plot +    
     scale_y_continuous(breaks = pretty_breaks(),limits = c(0, 1.2 * y1lim), 
