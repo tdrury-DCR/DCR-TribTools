@@ -169,7 +169,6 @@ return(dfs)
 
 # dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = 1.26, username = "Dan Crocker", userlocation = userlocation)
 
-
 PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = NULL) {
   
   pd <- df_mayfly
@@ -226,9 +225,9 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
       geom_vline(xintercept = min(DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
 
   plot <- switch (var2,
-      "Temperature" = plot + geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Logger_temp_c * mult, color = "Water Temperature (C) - prior"), size = 1),
-      "Conductivity" = plot + geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Conductivity_uScm * mult, color = "Conductivity (uS/cm) - prior"), size = 1),
-      "Discharge" = plot + geom_line(data = df_prior, aes(x = df_prior$DateTimeUTC, y = df_prior$Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
+      "Temperature" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Logger_temp_c * mult, color = "Water Temperature (C) - prior"), size = 1),
+      "Conductivity" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Conductivity_uScm * mult, color = "Conductivity (uS/cm) - prior"), size = 1),
+      "Discharge" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
     )    
   }
   if(nrow(df_stage) > 0){
@@ -245,12 +244,12 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
          colour = "") +
     ggtitle(title) +
     theme_linedraw() +
-    theme(plot.title = element_text(family = "Arial",color= "black", face="bold", size=14, vjust = 1, hjust = 0.5),
+    theme(plot.title = element_text(color= "black", face="bold", size=14, vjust = 1, hjust = 0.5),
           legend.position = "bottom",
           axis.title.x = element_text(angle = 0, face = "bold", color = "black"),
           axis.title.y = element_text(angle = 90, face = "bold", color = "black"))
   
-  plot
+  # plot
   return(plot)
 }
 
