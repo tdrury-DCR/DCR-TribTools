@@ -26,8 +26,6 @@ ipak(packages)
 ### Set environment timezone
 # Sys.setenv(TZ='UTC')
 
-
-
 #Set user info
 user <-  Sys.getenv("USERNAME") %>% toupper()
 userdata <- readxl::read_xlsx(path = config[10])

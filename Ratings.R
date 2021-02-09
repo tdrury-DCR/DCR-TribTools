@@ -45,12 +45,15 @@
 # tbl_discharges <- dbReadTable(con, Id(schema = schema, table = 'tblDischargeMeasurements'))
 # dbDisconnect(con)
 # rm(con)
+# 
+# tbl_ratings <- df_ratings
+# tbl_discharges <- df_discharges
   
 # ### FUNCTION ARGS ####
-# locs <- unique(tbl_discharges$Location)
+# locs <- unique(df_discharges$Location)
 # locs # Look at the locations
-# loc <- locs[4] # Pick a location
-# ratingNo <-  1.02
+# loc <- locs[8] # Pick a location
+# ratingNo <-  3.01
 # drop_meas <- NULL
 # offset1 <- 0.028
 # break1 <- 0
@@ -563,7 +566,7 @@ quality <- c("Fair" = 70, "Good" = 85, "Excellent" = 100, "Poor" = 0)
   
 loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
   
-rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), IsCurrent == TRUE)
+rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), RatingNum == ratingNo)
   
 current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), IsCurrent == TRUE)
 
@@ -589,7 +592,7 @@ new_rating <- ratingNo
   apply_offset <- function(.x, .y){
     # correct stage datum to match current rating datum
     if(.x < new_rating){
-      round(.y + loc_ratings$RatingDatumOffset[loc_ratings$RatingNum == .x],2)
+      round(.y + loc_ratings$RatingDatumOffset[loc_ratings$RatingNum == .x], 2)
     } else {
       .y
     }
@@ -762,15 +765,14 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
     p <- p
   }
   
-  
   p_rating <- plotly::ggplotly(p, tooltip = c("text")) %>% 
     layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
   # p_rating
 }
 ### PLOT_RATING INTERACTIVE ####
-# loc <- "FRENCH BROOK - MD01"
-# ratingNo <- 2.02
-# p <- PLOT_RATING(tbl_discharges, tbl_ratings, loc, ratingNo = 1.02)
+# loc <- "FRENCH BROOK - M110"
+# ratingNo <- 3.03
+# p <- PLOT_RATING(tbl_discharges, tbl_ratings, loc, ratingNo = 3.03)
 # p
 # 
   # 

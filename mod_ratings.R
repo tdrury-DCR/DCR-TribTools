@@ -126,7 +126,7 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
   
   output$pzf_current <- renderText({
     req(input$site != "Choose Location")
-    paste0("The PZF for the current rating at the selected site (", substrRight(input$site, 4), ") is: ", df_ratings$a1[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$Current == TRUE], " ft")
+    paste0("The PZF for the current rating at the selected site (", substrRight(input$site, 4), ") is: ", df_ratings$a1[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$IsCurrent == TRUE], " ft")
   })
   
   output$discharges <- renderDataTable({
@@ -301,23 +301,25 @@ observeEvent(input$site,{
 #     plot1_value$type <- "a"
 # }, ignoreInit = T)
   
+  current_rating <- reactive({
+    # req(input$site)
+    df_ratings$RatingNum[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$IsCurrent == TRUE]
+  })    
+  
 plot_measurements <- eventReactive(input$site,{ 
      PLOT_MEASUREMENTS(df_discharges, df_ratings, input$site)
   })
-  
-plot2 <- eventReactive(c(input$site,input$rating2),{ 
-  req(input$rating2)
-     PLOT_RATING(df_discharges, df_ratings, loc = input$site, ratingNo = input$rating2)
+
+plot2 <- eventReactive(c(input$site, input$rating2),{ 
+  req(input$site,  input$rating2)
+  PLOT_RATING(df_discharges, df_ratings, loc = input$site, ratingNo = input$rating2)  
   }, ignoreNULL = T)
   
   site_ratings <- reactive({
     req(input$site != "Choose Location")
     df_ratings$RatingNum[df_ratings$MWRA_Loc == substrRight(input$site, 4)]
   })
-  current_rating <- reactive({
-    req(site_ratings())
-    df_ratings$RatingNum[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$Current == TRUE]
-  })  
+
   
   # Site UI
   output$rating2_ui <- renderUI({
