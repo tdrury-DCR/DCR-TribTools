@@ -122,7 +122,7 @@ HOBOcalcQ <- function(schema, loc, df_HOBO) {
       # Use findq function to calculate discharge from each stage
       df_HOBO$q_cfs[i] <- findq(stage = stages[i], C = get(C), a = get(a), n = get(n))
     }
-    df_HOBO$q_cfs <- round(df_HOBO$q_cfs, digits = 2)
+    df_HOBO$q_cfs <- round(df_HOBO$q_cfs, digits = 6)
     df_HOBO <- dplyr::rename(df_HOBO, "Discharge_cfs" = q_cfs)
     # df_HOBO <- dplyr::rename(df_HOBO, "Discharge_new" = q_cfs) ### use this line for discharge from corrected stage values
   }
