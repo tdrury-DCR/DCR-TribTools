@@ -86,7 +86,7 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
   substrRight <- function(x, n){
     substr(x, nchar(x)-n+1, nchar(x))
   }
-  
+  df_discharges <- df_discharges %>% select(-Edit_timestamp)
   df_discharges[,c(4:5)] <- force_tz(df_discharges[,c(4:5)], tzone = "America/New_York")
   df_ratings[,c(9:10)] <- force_tz(df_ratings[,c(9:10)] , tzone = "America/New_York")
   
@@ -130,7 +130,7 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
   })
   
   output$discharges <- renderDataTable({
-    datatable(df_discharges) %>%
+    datatable(df_discharges) %>% 
       formatDate(columns = c("DateTimeStartET","DateTimeEndET"), method = 'toLocaleString')
   })
     
