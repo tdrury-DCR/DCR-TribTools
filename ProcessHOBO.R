@@ -327,7 +327,7 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   rm(con)
   
   ### Move the processed raw data file and hobo file to the appropriate processed folder
-  dir <- paste0(hobo_path, loc)
+  dir <- paste0(hobo_path, "/", loc)
  
   if(!dir.exists(dir)) {
     dir.create(dir)
