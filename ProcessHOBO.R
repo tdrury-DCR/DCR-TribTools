@@ -327,14 +327,16 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   rm(con)
   
   ### Move the processed raw data file and hobo file to the appropriate processed folder
-  dir <- paste0(hobo_path, "/", loc)
+  dir_num <- as.numeric(which(!is.na(str_match(list.dirs(hobo_path, recursive = T, full.names = T), loc))))
+  subdir <- list.dirs(hobo_path, recursive = T, full.names = T)[dir_num]
+  ### Move the processed raw data file and hobo file to the appropriate processed folder
  
-  if(!dir.exists(dir)) {
-    dir.create(dir)
+  if(!dir.exists(subdir)) {
+    dir.create(subdir)
   }
   
-  file.rename(file, paste0(dir, "/", baro_file))
-  file.rename(hobo_file, paste0(dir, "/", hobo_name))
+  file.rename(file, paste0(subdir, "/", baro_file))
+  file.rename(hobo_file, paste0(subdir, "/", hobo_name))
   
   return(paste0("Barometric HOBO Data finished importing at ", Sys.time()))
 } ### End function
