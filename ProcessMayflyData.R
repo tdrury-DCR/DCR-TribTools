@@ -43,8 +43,13 @@ df$DateTimeUTC <- as_datetime(df$DateTimeUTC, tz = "UTC")
 df$Stage_ft <- df$Stage_ft/304.8
 
 ### Connect to db in UTC time
+dsn <- 'DCR_DWSP_App_R'
 database <- "DCR_DWSP"
-con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+tz <- 'UTC'
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+
+# database <- "DCR_DWSP"
+# con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
 schema <- userlocation                 
 mayfly_tbl <- "tblMayfly"
 
@@ -120,7 +125,11 @@ df_flags <- setFlagIDs()
 ### df_Stage ####
 
 ### Connect to db  in America/New_York tz
-con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
+dsn <- 'DCR_DWSP_App_R'
+database <- "DCR_DWSP"
+tz <- 'America/New_York'
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+# con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
 
 df_stage <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
                                   FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Staff Gauge Height'
@@ -137,7 +146,9 @@ df_stage <- df_stage %>%
 
 ### Grab last 1 days records to plot with new data to check for missed data corrections
 t <- min(df$DateTimeUTC)
-con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+
+tz <- 'UTC'
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
 
 mayfly_prior <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
                                   [Location] = '{loc}'"))
@@ -273,9 +284,15 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   
   mayfly_tbl <- "tblMayfly"
   
-  database <- "DCR_DWSP" 
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
+  tz <- 'UTC'
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
   schema <- userlocation
-  con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+  
+  # database <- "DCR_DWSP" 
+  # con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+  
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{mayfly_tbl}")), value = df_mayfly, append = TRUE)
   
   # Flag data

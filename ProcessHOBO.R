@@ -116,12 +116,11 @@ PROCESS_BARO <- function(baro_file, userlocation){
   # baro$DateTimeUTC <- with_tz(baro$DateTimeUTC, UTC)
   
   ### Connect to db #1
-  
-  database <- 'DCR_DWSP'
   schema <- userlocation
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
   tz <- 'UTC'
-  ### Connect to Database 
-  con <- dbConnect(odbc::odbc(), database, timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
   
   ### A function to fetch record IDs from the database table and assign record IDs to the new data
   setIDs <- function(){
@@ -315,11 +314,11 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   
   ### CONNECT TO A FRONT-END DATABASE ####
     ### Set DB
-    database <- 'DCR_DWSP'
     schema <- userlocation
+    dsn <- 'DCR_DWSP_App_R'
+    database <- "DCR_DWSP"
     tz <- 'UTC'
-    ### Connect to Database 
-    con <- dbConnect(odbc::odbc(), 'DCR_DWSP', timezone = tz)
+    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
 
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{baro_tbl}")), value = df_baro, append = TRUE)
   ### Disconnect from db and remove connection obj
@@ -394,11 +393,13 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   }  
   
   ### Connect to db # 2  ## IMPORTANT - timezone set as UTC
-  database <- 'DCR_DWSP'
+  ### CONNECT TO A FRONT-END DATABASE ####
+  ### Set DB
   schema <- userlocation
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
   tz <- 'UTC'
-  ### Connect to Database 
-  con <- dbConnect(odbc::odbc(), 'DCR_DWSP', timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
   
   df_baro <- dbReadTable(con, Id(schema = schema, table = baro_tbl))
   
@@ -454,11 +455,13 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   }
   
   ### Connect to db #3  ## IMPORTANT - timezone set as UTC
-  database <- 'DCR_DWSP'
+  ### CONNECT TO A FRONT-END DATABASE ####
+  ### Set DB
   schema <- userlocation
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
   tz <- 'UTC'
-  ### Connect to Database 
-  con <- dbConnect(odbc::odbc(), database, timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
   ### Set record IDs
   setIDs <- function(){
     qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_tbl}]"))
@@ -560,11 +563,13 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   if (userlocation == "Wachusett") { ### Quabbin has no manual stage measurements to get 
   ### Connect to db  #4 ## IMPORTANT - timezone set as UTC
-    database <- 'DCR_DWSP'
+
+    ### Set DB Connection
     schema <- userlocation
+    dsn <- 'DCR_DWSP_App_R'
+    database <- "DCR_DWSP"
     tz <- 'America/New_York'
-    ### Connect to Database 
-    con <- dbConnect(odbc::odbc(), database, timezone = tz)
+    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
   
   if (userlocation == "Wachusett") {
     df_stage  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
@@ -741,11 +746,11 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
     hobo_tbl <- "tbl_HOBO_WELLS"
   }
   ### Import the data to the database
-  database <- 'DCR_DWSP'
-  schema <- 'Wachusett'
+  schema <- "Wachusett"
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
   tz <- 'UTC'
-  ### Connect to Database 
-  con <- dbConnect(odbc::odbc(), database, timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
   ### Write data
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_tbl}")), value = df_hobo, append = TRUE)
 

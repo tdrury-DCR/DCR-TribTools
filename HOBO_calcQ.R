@@ -20,8 +20,15 @@
 HOBOcalcQ <- function(schema, loc, df_HOBO) {
 
   # Set odbc connection  and get the rating table
+  
+  schema <- userlocation
+  dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
-  con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
+  tz <- 'America/New_York'
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  
+  # database <- "DCR_DWSP"
+  # con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
   ratings <- dbReadTable(con, Id(schema = schema, table = "tblRatings"))
   
   # Disconnect from db and remove connection obj

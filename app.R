@@ -36,8 +36,11 @@ userlocation <<- paste0(userdata[6])
 if (userlocation == "Wachusett") { ### WACHUSETT ####
 schema <- "Wachusett"
 ### Connect to the DWSP database in SQL Server
-database <- "DCR_DWSP" 
-con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
+
+dsn <- 'DCR_DWSP_App_R'
+database <- "DCR_DWSP"
+tz <- 'UTC'
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
 
   ### RATING TOOL Function Args
   measurement_data <- config[9] ### Set the table name with discharges
