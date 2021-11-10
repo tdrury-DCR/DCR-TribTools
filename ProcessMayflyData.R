@@ -288,8 +288,8 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   
   file <- paste0(mayfly_data_dir,"/", mayfly_file)
   
-  loc <- str_split_fixed(mayfly_file, "MF_", n = 2) 
-  loc <- loc[,1]
+  loc <- str_split_fixed(mayfly_file, "_", n = 2) 
+  loc <- loc[1] %>% str_replace("WACH-","")
   
   mayfly_tbl <- "tblMayfly"
   
