@@ -19,7 +19,7 @@ ipak <- function(pkg){
 ### Package List ####
 ### NOTE - Shiny must be installed and loaded in the LaunchAppGitHub.R script - any other packages requred should be listed below
 
-packages <- c("RODBC", "DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT",
+packages <- c("DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT", "naniar",
               "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue")
 ipak(packages) 
 

@@ -442,12 +442,12 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   ### Source the function to calculate discharges
   source("HOBO_calcQ.R")
   if(loc == "SYW177"){
-    ### Well depth from casing top to bottom = 26.90625, stick-up height (2.0 + WLM calibration adjustment) = 2.01 ft 
+    ### Well depth from casing top to bottom = 26.90625, stick-up height (2.20 + WLM calibration adjustment) = 2.00 ft 
     hobo_tbl <- "tbl_HOBO_WELLS"
     df_HOBO <- df2 %>% 
       mutate("RatingFlag" = NA,
              "Discharge_cfs" = NA,
-             "Water_Level_ft" = round(26.90625 - 2.21 - Stage_ft, 2)) # Water level below ground surface
+             "Water_Level_ft" = round(26.90625 - 2.20 - Stage_ft, 2)) # Water level below ground surface
     print(head(hobo_tbl))
   } else {
     ### Calcualte all discharges and save df2 to a new df with discharge info

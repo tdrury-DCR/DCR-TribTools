@@ -8,9 +8,9 @@
 ##############################################################################.
 
 # mayfly_files <- list.files(config[16]) %>% print()
-# mayfly_file <- mayfly_files[4]
+# mayfly_file <- mayfly_files[5]
 # username <- "Dan Crocker"
-# stage <- 1.26 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# stage <- 1.78 ### Enter stage at time of data download (Numeric entry in Shiny App)
 #   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
   
@@ -19,15 +19,15 @@ print(paste0("Mayfly data started processing at ", Sys.time()))
 ### Extract the location information from the Plot Title listed in the file
 file <- paste0(mayfly_data_dir,"/", mayfly_file)
 
-loc <- str_split_fixed(mayfly_file, "MF_", n = 2) 
-loc <- loc[,1]
+loc <- str_split_fixed(mayfly_file, "_", n = 2) 
+loc <- loc[1] %>% str_replace("WACH-","")
 
-df <- read_csv(file, skip = 7, guess_max = 100, 
+df <- read_csv(file, skip = 6, guess_max = 100, 
                col_types = cols(
-                 `Date and Time in UTC-5` = col_character(),
-                 CTDcond = col_double(),
-                 CTDdepth = col_double(),
-                 CTDtemp = col_double()
+                 `Date and Time in UTC` = col_character(),
+                 Hydros21cond = col_double(),
+                 Hydros21depth = col_double(),
+                 Hydros21temp = col_double(),
                )) %>%   
   select(c(1:4)) %>% 
   drop_na() %>%
@@ -36,8 +36,14 @@ df <- read_csv(file, skip = 7, guess_max = 100,
 names(df) <- c("DateTimeUTC", "Conductivity_uScm", "Stage_ft", "Logger_temp_c", "Location","ID")
 
 ### Format Date-Time stamp
-df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "America/Lima" ) # Use lima (UTC-5 to convert times - this avoids EST for America/New_York)
-df$DateTimeUTC <- as_datetime(df$DateTimeUTC, tz = "UTC")
+df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC") 
+
+### Filter out records where all Hydros21 values are -9999 
+na_recs <- which(rowSums(df[,2:4])  == -29997) %>% as.numeric()
+df <- df[-na_recs,]
+
+### Convert any remaining -9999 values to NA
+df <- df %>% naniar::replace_with_na(replace = list(Conductivity_uScm = -9999, Stage_ft = -9999, Logger_temp_c = -9999))
 
 ### Convert Stage from mm to ft
 df$Stage_ft <- df$Stage_ft/304.8
@@ -121,6 +127,9 @@ setFlagIDs <- function(){
   }
 } # End set flags function
 df_flags <- setFlagIDs()
+
+dbDisconnect(con)
+rm(con)
 
 ### df_Stage ####
 
