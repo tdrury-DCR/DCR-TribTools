@@ -10,7 +10,7 @@
 # mayfly_files <- list.files(config[16]) %>% print()
 # mayfly_file <- mayfly_files[5]
 # username <- "Dan Crocker"
-# stage <- 0.78 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# stage <- 0.67 ### Enter stage at time of data download (Numeric entry in Shiny App)
 #   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
   
@@ -47,7 +47,11 @@ if(str_detect(df$DateTimeUTC[1], "-")) {
 }
 ### Filter out records where all Hydros21 values are -9999 
 na_recs <- which(rowSums(df[,2:4])  == -29997) %>% as.numeric()
-df <- df[-na_recs,]
+
+if(length(na_recs) > 0){
+  print(paste0(length(na_recs), " NA records were removed from the data."))
+  df <- df[-na_recs,]
+} 
 
 ### Convert any remaining -9999 values to NA
 df <- df %>% naniar::replace_with_na(replace = list(Conductivity_uScm = -9999, Stage_ft = -9999, Logger_temp_c = -9999))
