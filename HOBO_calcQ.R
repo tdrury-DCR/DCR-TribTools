@@ -21,8 +21,6 @@ HOBOcalcQ <- function(schema, loc, df_HOBO) {
 
   # Set odbc connection  and get the rating table
   
-
-  
 ### Connect to db  in America/New_York tz
   schema <- schema
   dsn <- 'DCR_DWSP_App_R'

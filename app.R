@@ -111,18 +111,19 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone 
   
   database <- config[3]
   ### Connect to Database #1
-  con <- dbConnect(odbc::odbc(),
-                   .connection_string = paste("driver={Microsoft Access Driver (*.mdb)}",
-                                              paste0("DBQ=", database), "Uid=Admin;Pwd=;", sep = ";"),
-                   timezone = "America/New_York")
+  ### Connect to the DWSP database in SQL Server
+  schema <- "Quabbin"
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
+  tz <- 'UTC'
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
   
   ### RATING TOOL Function Args
   measurement_data <- config[9] ### Set the table name with discharges
   rating_data <- config[8] ### Get the rating information
-  # df_discharges <- dbReadTable(con, Id(schema = schema, table = measurement_data))
-  # df_ratings <- dbReadTable(con, Id(schema = schema, table = rating_data))  
-  df_discharges <- dbReadTable(con, measurement_data)
-  df_ratings <- dbReadTable(con, rating_data)
+  df_discharges <- dbReadTable(con, Id(schema = schema, table = measurement_data))
+  df_ratings <- dbReadTable(con, Id(schema = schema, table = rating_data))
+
   
   dbDisconnect(con)
   rm(con)

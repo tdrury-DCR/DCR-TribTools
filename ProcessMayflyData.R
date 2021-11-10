@@ -316,10 +316,10 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   rm(con)
   
   ### Move the processed raw mayfly data file to the appropriate processed folder
-  dir_num <- as.numeric(which(!is.na(str_match(list.dirs(mayfly_data_processed, recursive = T, full.names = T), loc))))
-  subdir <- list.dirs(mayfly_data_processed, recursive = T, full.names = T)[dir_num]
-  
-  file.rename(file, paste0(subdir, "/", mayfly_file))
+  write_dir <- paste0(mayfly_data_processed, "/", loc)
+  dir.create(write_dir)
+ 
+  file.rename(file, paste0(write_dir, "/", mayfly_file))
   print(paste0("Mayfly Data finished importing at ", Sys.time()))
   return("Import Successful")
 }
