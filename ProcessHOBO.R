@@ -579,8 +579,8 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
 
       
     df_stage <- df_stage %>% 
-      filter(DateTimeET > min(df_HOBO$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
-             DateTimeET < max(df_HOBO$DateTimeUTC)
+      filter(DateTimeET >= min(df_HOBO$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+             DateTimeET <= max(df_HOBO$DateTimeUTC)
              )
     
   } else {

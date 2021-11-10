@@ -10,7 +10,7 @@
 # mayfly_files <- list.files(config[16]) %>% print()
 # mayfly_file <- mayfly_files[5]
 # username <- "Dan Crocker"
-# stage <- 1.78 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# stage <- 0.78 ### Enter stage at time of data download (Numeric entry in Shiny App)
 #   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
   
@@ -35,9 +35,16 @@ df <- read_csv(file, skip = 6, guess_max = 100,
 
 names(df) <- c("DateTimeUTC", "Conductivity_uScm", "Stage_ft", "Logger_temp_c", "Location","ID")
 
-### Format Date-Time stamp
-df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC") 
+### Format Date-Time stamp - Need two tries here because Excel will mess with date formats 
+if(str_detect(df$DateTimeUTC[1], "/")) {
+  print("Dates formatted with slashes")
+  df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC")
+}
 
+if(str_detect(df$DateTimeUTC[1], "-")) {
+  print("Dates formatted with dashes")
+  df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
+}
 ### Filter out records where all Hydros21 values are -9999 
 na_recs <- which(rowSums(df[,2:4])  == -29997) %>% as.numeric()
 df <- df[-na_recs,]
@@ -148,8 +155,8 @@ dbDisconnect(con)
 rm(con)
 
 df_stage <- df_stage %>% 
-  filter(DateTimeET > min(df$DateTimeUTC),
-         DateTimeET < max(df$DateTimeUTC))
+  filter(DateTimeET >= min(df$DateTimeUTC),
+         DateTimeET <= max(df$DateTimeUTC))
 
 ### df_prior ####
 
@@ -196,6 +203,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
   loc <- df_mayfly %>% 
     slice(1) %>% 
     pull(Location)
+  
   
   cols <- c("Water Temperature (C)" = "purple4",
             "Water Temperature (C) - prior" = "orchid4",
