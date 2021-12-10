@@ -213,8 +213,8 @@ plot <- eventReactive(input$process,{
   req(dfs)
   switch(file_type(),
          "baro" = {PREVIEW_BARO(df(), df_prior(), var2 = NULL)},
-         "hobo" = {PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())},
-         "mayfly" = {PREVIEW_MAYFLY(df(), df_prior(), df_stage(), var2 = var2())}
+         "hobo" = {PREVIEW_HOBO(df(), df_prior(), df_stage(), df_temp(), var2 = var2())},
+         "mayfly" = {PREVIEW_MAYFLY(df(), df_prior(), df_stage(), df_temp(), df_conductivity(), var2 = var2())}
   )
 }
 )  
@@ -227,8 +227,8 @@ output$plot <- renderPlot({
     PREVIEW_BARO(df(), df_prior(), var2 = NULL)
   } else {
     switch(file_type(),
-         "hobo" = {PREVIEW_HOBO(df(), df_prior(), df_stage(), var2 = var2())},
-         "mayfly" = {PREVIEW_MAYFLY(df(), df_prior(), df_stage(), var2 = var2())}
+         "hobo" = {PREVIEW_HOBO(df(), df_prior(), df_stage(), df_temp(), var2 = var2())},
+         "mayfly" = {PREVIEW_MAYFLY(df(), df_prior(), df_stage(), df_temp(), df_conductivity(), var2 = var2())}
     )
   }
 })
@@ -279,6 +279,12 @@ df_prior <- reactive({
 })
 df_stage <- reactive({
   dfs()[[4]]
+})
+df_temp <- reactive({
+  dfs()[[5]]
+})
+df_conductivity <- reactive({
+  dfs()[[6]]
 })
 
 

@@ -151,15 +151,34 @@ tz <- 'America/New_York'
 con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
 # con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
 
+### Bring in stage, temperature, and specific conductance manual measurements
 df_stage <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
                                   FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Staff Gauge Height'
                                   AND [Location] = '{loc}'"))
+
+df_temp  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
+                                  FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Water Temperature'
+                                  AND [Location] = '{loc}'"))
+
+df_conductivity  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
+                                  FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Specific Conductance'
+                                  AND [Location] = '{loc}'"))
+
 ### Disconnect from db and remove connection obj
 dbDisconnect(con)
 rm(con)
 
+###  Filter to the date range of the HOBO data being imported
 df_stage <- df_stage %>% 
-  filter(DateTimeET >= min(df$DateTimeUTC),
+  filter(DateTimeET >= min(df$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+         DateTimeET <= max(df$DateTimeUTC))
+
+df_temp <- df_temp %>% 
+  filter(DateTimeET >= min(df$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+         DateTimeET <= max(df$DateTimeUTC))
+
+df_conductivity <- df_conductivity %>% 
+  filter(DateTimeET >= min(df$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
          DateTimeET <= max(df$DateTimeUTC))
 
 ### df_prior ####
@@ -188,7 +207,9 @@ dfs <- list(
   "df" = df,
   "df_flag" = df_flags,
   "df_prior" = mayfly_prior,
-  "df_stage" = df_stage)
+  "df_stage" = df_stage,
+  "df_temp" = df_temp,
+  "df_conductivity" = df_conductivity)
 
 print(paste0("Mayfly Data finished processing at ", Sys.time()))
 
@@ -200,7 +221,7 @@ return(dfs)
 
 # dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = 1.26, username = "Dan Crocker", userlocation = userlocation)
 
-PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = NULL) {
+PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp = NULL, df_conductivity = NULL, var2 = NULL) {
   
   pd <- df_mayfly
   
@@ -208,17 +229,25 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
     slice(1) %>% 
     pull(Location)
   
-  
-  cols <- c("Water Temperature (C)" = "purple4",
-            "Water Temperature (C) - prior" = "orchid4",
-            "Discharge (cfs)" = "blue4", 
-            "Discharge (cfs) - prior" = "steelblue",
-            "Stage (ft)" = "darkgreen",
-            "Stage (ft) - prior" = "darkseagreen4",
-            "Stage (ft) - manual" = "darkorange3",
-            "Conductivity (uS/cm)" = "darkslateblue", 
-            "Conductivity (uS/cm) - prior" = "darkorchid4" 
+  ### cols is used as the ordering of data in the plot legend. If you change the order, you have to change the code for each parameter below
+  cols <- c("Stage (ft)" = "darkgreen", #cols[1]
+            "Stage (ft) - prior" = "darkseagreen4", #cols[2]
+            "Stage (ft) - manual" = "darkorange2", #cols[3]
+            "Water Temperature (C)" = "purple4", #cols[4]
+            "Water Temperature (C) - prior" = "orchid4", #cols[5]
+            "Water Temperature (C) - manual" = "magenta", #cols[6]
+            "Discharge (cfs)" = "blue4",  #cols[7]
+            "Discharge (cfs) - prior" = "steelblue", #cols[8]
+            "Conductivity (uS/cm)" = "gray35", #cols[9]
+            "Conductivity (uS/cm) - prior" = "gray65", #cols[10]
+            "Conductivity (uS/cm) - manual" = "red1" #cols[11]
   )
+ 
+   ### Create empty vectors that will be filled based on the parameters on each plot
+  cols_legend <- NULL
+  linetype_legend <- NULL
+  shape_legend <- NULL
+  
   if(nrow(df_prior) == 0){
     prior <-  FALSE
   } else {
@@ -231,6 +260,12 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
     "Temperature" = max(pd$Logger_temp_c),
     "Conductivity" = max(pd$Conductivity_uScm),
     "Discharge" = max(pd$Discharge_cfs)
+  )
+  
+  y2lab <- switch (var2,
+      "Temperature" = "Temperature (C)",
+      "Conductivity" = "Specific Conductance (uS/cm)",
+      "Discharge" = "Discharge (cfs)"
   )
   
   title <- switch (var2,
@@ -249,35 +284,122 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, var2 = N
         "Conductivity" = plot + geom_line(aes(y = Conductivity_uScm * mult, color = "Conductivity (uS/cm)"), size = 1),
         "Discharge" = plot + geom_line(aes(y = Discharge_cfs * mult, color = "Discharge (cfs)"), size = 1)
     )
+  
+  ### Add legend items with colors for data being added to plot in this step
+  cols_legend <- append(cols_legend,
+                  switch(var2,
+                         "Temperature" = c(cols[4], cols[1]),
+                         "Conductivity" = c(cols[9],cols[1]),
+                         "Discharge" = c(cols[7],cols[1])))
+  ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+  linetype_legend <- append(linetype_legend,
+                            switch(var2,
+                                   "Temperature" = c("Water Temperature (C)" = "solid", 
+                                                     "Stage (ft)" = "solid"),
+                                   "Conductivity" = c("Conductivity (uS/cm)" = "solid", 
+                                                      "Stage (ft)" = "solid"),
+                                   "Discharge" = c("Discharge (cfs)" = "solid", 
+                                                   "Stage (ft)" = "solid")))
+  ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+  shape_legend <- append(shape_legend,
+                            switch(var2,
+                                   "Temperature" = c("Water Temperature (C)" = NA, 
+                                                     "Stage (ft)" = NA),
+                                   "Conductivity" = c("Conductivity (uS/cm)" = NA, 
+                                                      "Stage (ft)" = NA),
+                                   "Discharge" = c("Discharge (cfs)" = NA, 
+                                                   "Stage (ft)" = NA)))
 
   # Check for prior data to plot 
   if(isTRUE(prior)){
     plot <- plot +  
       geom_line(data = df_prior, aes(x = DateTimeUTC, y = Stage_ft, color = "Stage (ft) - prior"), size = 1) +
-      geom_vline(xintercept = min(DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
+      geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
 
   plot <- switch (var2,
       "Temperature" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Logger_temp_c * mult, color = "Water Temperature (C) - prior"), size = 1),
       "Conductivity" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Conductivity_uScm * mult, color = "Conductivity (uS/cm) - prior"), size = 1),
       "Discharge" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
-    )    
+    )
+  
+  ### Add legend items with colors for data being added to plot in this step
+  cols_legend <- append(cols_legend,
+                        switch(var2,
+                               "Temperature" = c(cols[5],cols[2]),
+                               "Conductivity" = c(cols[10],cols[2]),
+                               "Discharge" = c(cols[8],cols[2])))
+  ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+  linetype_legend <- append(linetype_legend,
+                            switch(var2,
+                                   "Temperature" = c("Water Temperature (C) - prior" = "solid",
+                                                     "Stage (ft) - prior" = "solid"),
+                                   "Conductivity" = c("Conductivity (uS/cm) - prior" = "solid",
+                                                      "Stage (ft) - prior" = "solid"),
+                                   "Discharge" = c("Discharge (cfs) - prior" = "solid",
+                                                   "Stage (ft) - prior" = "solid")))
+  ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+  shape_legend <- append(shape_legend,
+                         switch(var2,
+                                "Temperature" = c("Water Temperature (C) - prior" = NA,
+                                                  "Stage (ft) - prior" = NA),
+                                "Conductivity" = c("Conductivity (uS/cm) - prior" = NA,
+                                                   "Stage (ft) - prior" = NA),
+                                "Discharge" = c("Discharge (cfs) - prior" = NA,
+                                                "Stage (ft) - prior" = NA)))
+  
+  
   }
   if(nrow(df_stage) > 0){
     plot <- plot + 
       geom_point(data = df_stage, aes(x = DateTimeET, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
+    
+    cols_legend <- append(cols_legend,c(cols[3]))
+    ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+    linetype_legend <- append(linetype_legend,c("Stage (ft) - manual" = "blank"))
+    ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+    shape_legend <- append(shape_legend,c("Stage (ft) - manual" = 19)) 
   } ### NOTE Manual stage gets converted to UTC during import, so it is plotted correctly on the x-axis in UTC time along with sensor data
+  
+  
+  if(!is.null(df_temp) && nrow(df_temp) > 0 && var2=="Temperature") {
+    plot <- plot + 
+      geom_point(data = df_temp, aes(x = DateTimeET, y = FinalResult*mult, color = "Water Temperature (C) - manual"), size = 2)
+    ### Add legend items with colors for data being added to plot in this step
+    cols_legend <- append(cols_legend,c(cols[6]))
+    ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+    linetype_legend <- append(linetype_legend,c("Water Temperature (C) - manual" = "blank"))
+    ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+    shape_legend <- append(shape_legend,c("Water Temperature (C) - manual" = 19))  
+  }
+  
+  if(!is.null(df_conductivity) && nrow(df_conductivity) > 0 && var2=="Conductivity") {
+    plot <- plot + 
+      geom_point(data = df_conductivity, aes(x = DateTimeET, y = FinalResult*mult, color = "Conductivity (uS/cm) - manual"), size = 2)
+    ### Add legend items with colors for data being added to plot in this step
+    cols_legend <- append(cols_legend,c(cols[11]))
+    ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+    linetype_legend <- append(linetype_legend,c("Conductivity (uS/cm) - manual" = "blank"))
+    ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+    shape_legend <- append(shape_legend,c("Conductivity (uS/cm) - manual" = 19))  
+  }
+  
+  
   plot <- plot +    
     scale_y_continuous(breaks = pretty_breaks(),limits = c(0, 1.2 * y1lim), 
-                       sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = var2)) +
+                       sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = y2lab)) +
     scale_x_datetime(breaks = pretty_breaks(n=12)) + 
-    scale_colour_manual(values = cols) +
-    labs(y = "Stage (ft)",
+    scale_colour_manual(values = cols_legend[order(factor(names(cols_legend),levels = names(cols)))], #orders legend items and colors based on cols order
+                        guide = guide_legend(override.aes = list(
+                          linetype = linetype_legend[order(factor(names(linetype_legend),levels = names(cols)))], #orders legend linetypes based on cols order
+                          shape = shape_legend[order(factor(names(shape_legend),levels = names(cols)))]))) + #orders legend point shapes based on cols order
+        labs(y = "Stage (ft)",
          x = "Date",
          colour = "") +
     ggtitle(title) +
     theme_linedraw() +
     theme(plot.title = element_text(color= "black", face="bold", size=14, vjust = 1, hjust = 0.5),
           legend.position = "bottom",
+          legend.text = element_text(margin = margin(r=0.8, unit="cm")),
           axis.title.x = element_text(angle = 0, face = "bold", color = "black"),
           axis.title.y = element_text(angle = 90, face = "bold", color = "black"))
   
