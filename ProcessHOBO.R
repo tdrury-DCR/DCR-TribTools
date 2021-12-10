@@ -690,7 +690,9 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
     
   } else {
     y1lab <- "Stage (ft)"
-    y1lim <- max(pd$Stage_ft)
+    if(nrow(df_stage) > 0){
+                 y1lim <- max(c(pd$Stage_ft,df_stage$FinalResult))
+                    } else {y1lim <- max(pd$Stage_ft)}
     y1data <- pd$Stage_ft
     y1prior <- df_prior$Stage_ft
     y1prior_col <- "Stage (ft) - prior"
@@ -700,7 +702,9 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
       y2data <- pd$Logger_temp_c
       y2prior <- df_prior$Logger_temp_c
       y2col <- "Water Temperature (C)"
-      y2lim <- max(pd$Logger_temp_c)
+      if(!is.null(df_temp) && nrow(df_temp) > 0){
+              y2lim <- max(c(pd$Logger_temp_c,df_temp$FinalResult)) 
+                    } else {y2lim <- max(pd$Logger_temp_c)}
       y2prior_col <- "Water Temperature (C) - prior"
       y2lab <- "Water Temperature (C)"
       ### Add legend items with colors for data being added to plot in this step
@@ -783,6 +787,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
   if(!is.null(df_stage) && nrow(df_stage) > 0) {
     plot <- plot +
       geom_point(data = df_stage, aes(x = DateTimeET, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
+
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[3]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
@@ -794,6 +799,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
   if(!is.null(df_temp) && nrow(df_temp) > 0 && var2=="Temperature") {
     plot <- plot +
       geom_point(data = df_temp, aes(x = DateTimeET, y = FinalResult*mult, color = "Water Temperature (C) - manual"), size = 2)
+    
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[6]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)

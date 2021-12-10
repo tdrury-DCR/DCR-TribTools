@@ -254,11 +254,17 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
     prior <-  TRUE
   }
   
-  y1lim <- max(pd$Stage_ft)
+  y1lim <- if(nrow(df_stage) > 0){
+                  max(c(pd$Stage_ft,df_stage$FinalResult))
+                    } else {max(pd$Stage_ft)}
   
   y2lim <- switch (var2,
-    "Temperature" = max(pd$Logger_temp_c),
-    "Conductivity" = max(pd$Conductivity_uScm),
+    "Temperature" = if(!is.null(df_temp) && nrow(df_temp) > 0){
+                          max(c(pd$Logger_temp_c,df_temp$FinalResult)) 
+                      } else {max(pd$Logger_temp_c)},
+    "Conductivity" = if(!is.null(df_conductivity) && nrow(df_conductivity) > 0){
+                          max(c(pd$Conductivity_uScm,df_conductivity$FinalResult))
+                      } else {max(pd$Conductivity_uScm)},
     "Discharge" = max(pd$Discharge_cfs)
   )
   
@@ -353,6 +359,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
     plot <- plot + 
       geom_point(data = df_stage, aes(x = DateTimeET, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
     
+    ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[3]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
     linetype_legend <- append(linetype_legend,c("Stage (ft) - manual" = "blank"))
@@ -364,6 +371,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   if(!is.null(df_temp) && nrow(df_temp) > 0 && var2=="Temperature") {
     plot <- plot + 
       geom_point(data = df_temp, aes(x = DateTimeET, y = FinalResult*mult, color = "Water Temperature (C) - manual"), size = 2)
+    
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[6]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
@@ -375,6 +383,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   if(!is.null(df_conductivity) && nrow(df_conductivity) > 0 && var2=="Conductivity") {
     plot <- plot + 
       geom_point(data = df_conductivity, aes(x = DateTimeET, y = FinalResult*mult, color = "Conductivity (uS/cm) - manual"), size = 2)
+    
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[11]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
