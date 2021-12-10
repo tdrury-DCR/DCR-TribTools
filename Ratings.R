@@ -8,7 +8,6 @@
 ##############################################################################.
 
 # library(tidyverse)
-# library(RODBC)
 # library(odbc)
 # library(DBI)
 # library(stats)
@@ -125,9 +124,9 @@ gaugings <- data1[,c("Stage_ft","Discharge_cfs","MeasurementNumber","Measurement
 names(gaugings) <- c("stage", "discharge","num","Measurement_Rated", "DateTimeStartET")
 
 ### Assign parts for rating ####
-if(break2 > 0){
+if(!is.null(break2)){
   parts <- 3
-} else if(break1 > 0){
+} else if(!is.null(break1)){
   parts <- 2
 } else {
   parts <- 1
@@ -354,14 +353,14 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
 
 # LOOP THROUGH ALL STAGE VALUES AND CALCULATE THE DISCHARGE USING RATING COEFFICIENTS ####
 for (i in seq_along(df_Q$Q)) {
-  
+  i <- as.numeric(i)
   if(df_Q$stage[i] < minstage) { # Stage is below the rating curve (PZF) assign flow of zero and move to next record
     df_Q$Q[i] <- 0
-  } else {
-    if(df_Q$stage[i] > maxstage) { # Stage is above the rating curve and cannot be calculated -
-      # Set the stage to the max stage 
-      df_Q$stage[i] <- maxstage
-    }
+  } #else {
+    # if(df_Q$stage[i] > maxstage) { # Stage is above the rating curve and cannot be calculated -
+    #   # Set the stage to the max stage 
+    #   df_Q$stage[i] <- maxstage
+    # }
     # Rating Coefficients part 1 ####
     C1 <- r$C1
     a1 <- r$a1
@@ -383,7 +382,6 @@ for (i in seq_along(df_Q$Q)) {
     n <- paste0("n", df_Q$part[i])
     
     conf_int <- paste0("conf_int", df_Q$part[i])
-  }
   
 ### Use findq function to calculate discharge from each stage as well as upper and lower confidence bounds ####
   df_Q$Q[i] <- findq(stage = df_Q$stage[i], C = get(C), a = get(a), n = get(n))
@@ -405,10 +403,10 @@ cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "bl
 p <- ggplot() +
   geom_point(data = gaugings, aes(x=discharge, y=stage, color = Measurement_Rated,
                                   text = paste("Meas.No:", num, "<br>",
-                                               "Stage:", stage, "<br>",
-                                               "Discharge:",discharge,"<br>",
-                                               "Date:", as_date(DateTimeStartET),"<br>",
-                                               "Quality:", Measurement_Rated))) +
+                                  "Stage:", stage, "<br>",
+                                  "Discharge:",discharge,"<br>",
+                                  "Date:", as_date(DateTimeStartET),"<br>",
+                                  "Quality:", Measurement_Rated))) +
   geom_line(data = df_Q, aes(Q,stage), color = "red") +
   geom_line(data = df_Q, aes(lower,stage), color = "blue4", linetype = 3) +
   geom_line(data = df_Q, aes(upper,stage), color = "blue4", linetype = 3) +
