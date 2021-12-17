@@ -143,6 +143,16 @@ PROCESS_BARO <- function(baro_file, userlocation){
   col_order <- c(dbListFields(con, schema_name = schema, name = baro_tbl), "Logger_temp_f")
   baro <-  baro[col_order]
   
+  ### Check for duplicate data in the database
+  hobo_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+
+  duplicates <- semi_join(baro_dup_check, baro_existing, by="DateTimeUTC")
+  
+  if (nrow(duplicates) > 0){
+    stop(paste0("This file duplicates ",nrow(duplicates)," existing BARO records in the database."))
+  }
+  
   ### Get appropriate barometric file based on location
 
   if (userlocation == "Wachusett") {
