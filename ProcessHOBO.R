@@ -36,6 +36,7 @@
 # library(RODBC)
 # library(DBI)
 # library(readxl)
+# library(glue)
 
 # #### Config file
 # LOAD THIS FROM LAUNCH SCRIPT
@@ -144,13 +145,13 @@ PROCESS_BARO <- function(baro_file, userlocation){
   baro <-  baro[col_order]
   
   ### Check for duplicate data in the database
-  hobo_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+  baro_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
                                   [Location] = '{loc}'"))
 
-  duplicates <- semi_join(baro_dup_check, baro_existing, by="DateTimeUTC")
+  duplicates <- semi_join(baro, baro_existing, by="DateTimeUTC")
   
   if (nrow(duplicates) > 0){
-    stop(paste0("This file duplicates ",nrow(duplicates)," existing BARO records in the database."))
+    stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," BARO records in the database."))
   }
   
   ### Get appropriate barometric file based on location
@@ -347,6 +348,36 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   file.rename(file, paste0(subdir, "/", baro_file))
   file.rename(hobo_file, paste0(subdir, "/", hobo_name))
   
+  Email <- function() {
+    out <- tryCatch({
+      message("Trying to send email")
+      OL_EMAIL(to = distro2(), 
+               subject = paste0("Data has been flagged in a ", userlocation," Database"),
+               body = paste0(username," has flagged ", length(flagRecords()), " existing record(s) for the dataset: ",
+                             input$flagdatatype, ", with flag ", input$flag)
+      )
+      # sendmail(from = paste0("<",useremail,">"),
+      #          to = distro2(),
+      #          subject = paste0("Data has been flagged in a ", userlocation," Database"),
+      #          msg = paste0(username," has flagged ", length(flagRecords()), " existing record(s) for the dataset: ",
+      #                       input$flagdatatype, ", with flag ", input$flag),
+      #          control=list(smtpServer=MS))
+    },
+    error=function(cond) {
+      err <- print("User cannot connect to SMTP Server, cannot send email")
+      return(err)
+    },
+    warning=function(cond) {
+      warn <- print("Send mail function caused a warning, but was completed successfully")
+      return(warn)
+    },
+    finally={
+      message("Email notification process Complete")
+    }
+    )
+    return(out)
+  }
+  
   return(paste0("Barometric HOBO Data finished importing at ", Sys.time()))
 } ### End function
 
@@ -413,6 +444,25 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   df_baro <- dbReadTable(con, Id(schema = schema, table = baro_tbl))
   
+  ### Get existing data to check for duplicates
+  if(loc == "SYW177"){
+    hobo_tbl <- "tbl_HOBO_WELLS"
+  }
+  
+  hobo_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+
+  ### Disconnect from db and remove connection obj
+  dbDisconnect(con) #2
+  rm(con)
+  
+  ### Check for duplicate existing data in database
+  duplicates <- semi_join(df, hobo_existing, by="DateTimeUTC")
+  
+  if (nrow(duplicates) > 0){
+    stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," HOBO records in the database."))
+  }
+  
   ### Disconnect from db and remove connection obj
   dbDisconnect(con) #2
   rm(con)
@@ -453,7 +503,6 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   source("HOBO_calcQ.R")
   if(loc == "SYW177"){
     ### Well depth from casing top to bottom = 26.90625, stick-up height (2.20 + WLM calibration adjustment) = 2.00 ft 
-    hobo_tbl <- "tbl_HOBO_WELLS"
     df_HOBO <- df2 %>% 
       mutate("RatingFlag" = NA,
              "Discharge_cfs" = NA,

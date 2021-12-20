@@ -70,6 +70,16 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone 
 schema <- userlocation                 
 mayfly_tbl <- "tblMayfly"
 
+### Get existing Mayfly data for dup check
+mayfly_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+### Check for duplicate existing data in database
+duplicates <- semi_join(df, mayfly_existing, by="DateTimeUTC")
+
+if (nrow(duplicates) > 0){
+  stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," Mayfly records in the database."))
+}
+
 ### A function to fetch record IDs from the database table and assign record IDs to the new data
 setIDs <- function(){
   qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{mayfly_tbl}]"))
