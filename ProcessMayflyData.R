@@ -473,6 +473,9 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   dir.create(write_dir)
  
   file.rename(file, paste0(write_dir, "/", mayfly_file))
+  
+  SendEmail(df=df_mayfly, table=mayfly_tbl, file=mayfly_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  
   print(paste0("Mayfly Data finished importing at ", Sys.time()))
   return("Import Successful")
 }

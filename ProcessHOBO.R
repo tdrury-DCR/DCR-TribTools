@@ -224,11 +224,7 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
   cols <- c("Air Temperature (C)" = "turquoise3",
             "Air Temperature (C) - prior" = "yellowgreen",
             "Air Pressure (psi)" = "sienna2", 
-            "Air Pressure (psi) - prior" = "tomato4",
-            "Water Temperature (C)" = "purple4",
-            "Water Temperature (C) - prior" = "orchid4",
-            "Groundwater level (ft below ground surface)" = "blue3",
-            "Groundwater level (ft below ground surface) - prior" = "blue4"
+            "Air Pressure (psi) - prior" = "tomato4"
   )
   
   if(is.null(df_prior)){
@@ -237,27 +233,16 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
     prior <-  TRUE
   }
   
-  if(loc == "SYW177"){
-    title <- paste0("Groundwater Level and Temperature from HOBO\n At Location ", loc)
-    y1lab <- "Groundwater Level (ft below ground surface)"
-    y1lim <- max(pd$Water_Level_ft)
-    y1data <- pd$Water_Level_ft
-    y1prior <- df_prior$Water_Level_ft
-    y1color <- "Groundwater level (ft below ground surface)"
-    y1prior_col <- "Groundwater level (ft below ground surface) - prior"
-    y2col <- "Water Temperature (C)"
-    y2prior_col <- "Water Temperature (C) - prior"
-  } else {
     title <- paste0("Raw Air Pressure and Air Temperature from Barometric HOBO\n At Location ", loc)
     y1lab <- "Air Pressure (psi)"
     y1lim <- max(pd$Logger_psi)
     y1data <- pd$Logger_psi
     y1prior <- df_prior$Logger_psi
     y1color <- "Air Pressure (psi)"
-    y1prior_col <- "Air Pressure (psi)"
+    y1prior_col <- "Air Pressure (psi) - prior"
     y2col <- "Air Temperature (C)"
     y2prior_col <- "Air Temperature (C) - prior"
-  }
+
   
   y2lim <- max(pd$Logger_temp_c)
   y2temp <- 
@@ -279,15 +264,11 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
       # text = paste("Date-Time: ", df_prior$DateTimeUTC, "<br>", "Air Pressure (psi): ", df_prior$Logger_psi))) + #, size = 1) +
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
   }
-  if(loc == "SYW177"){
-    plot <- plot +
-      scale_y_continuous(breaks = pretty_breaks(),limits = c(1.2 * y1lim, NA), trans = scales::reverse_trans(),
-                         sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Water Temperature (C)"))
-  } else {
+
     plot <- plot +
       scale_y_continuous(breaks = pretty_breaks(),limits = c(NA, 1.2 * y1lim),
                          sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Air Temperature (C)"))
-  }
+
   plot <- plot +
     scale_x_datetime(breaks = pretty_breaks(n=12)) + 
     scale_colour_manual(values = cols) +
@@ -298,6 +279,7 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
     theme_linedraw() +
     theme(plot.title = element_text(color= "black", face="bold", size=14, vjust = 1, hjust = 0.5),
           legend.position = "bottom",
+          legend.text = element_text(margin = margin(r=0.8, unit="cm")),
           axis.title.x = element_text(angle = 0, face = "bold", color = "black"),
           axis.title.y = element_text(angle = 90, face = "bold", color = "black"))
   # plot <- plotly::ggplotly(plot, tooltip = c("text"))
@@ -348,35 +330,7 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   file.rename(file, paste0(subdir, "/", baro_file))
   file.rename(hobo_file, paste0(subdir, "/", hobo_name))
   
-  Email <- function() {
-    out <- tryCatch({
-      message("Trying to send email")
-      OL_EMAIL(to = distro2(), 
-               subject = paste0("Data has been flagged in a ", userlocation," Database"),
-               body = paste0(username," has flagged ", length(flagRecords()), " existing record(s) for the dataset: ",
-                             input$flagdatatype, ", with flag ", input$flag)
-      )
-      # sendmail(from = paste0("<",useremail,">"),
-      #          to = distro2(),
-      #          subject = paste0("Data has been flagged in a ", userlocation," Database"),
-      #          msg = paste0(username," has flagged ", length(flagRecords()), " existing record(s) for the dataset: ",
-      #                       input$flagdatatype, ", with flag ", input$flag),
-      #          control=list(smtpServer=MS))
-    },
-    error=function(cond) {
-      err <- print("User cannot connect to SMTP Server, cannot send email")
-      return(err)
-    },
-    warning=function(cond) {
-      warn <- print("Send mail function caused a warning, but was completed successfully")
-      return(warn)
-    },
-    finally={
-      message("Email notification process Complete")
-    }
-    )
-    return(out)
-  }
+  SendEmail(df=df_baro, table=baro_tbl, file=baro_file, emaillist=emaillist, username=username, userlocation=userlocation)
   
   return(paste0("Barometric HOBO Data finished importing at ", Sys.time()))
 } ### End function
@@ -390,9 +344,9 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
 # ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[3] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 2 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 16.28 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -463,9 +417,6 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," HOBO records in the database."))
   }
   
-  ### Disconnect from db and remove connection obj
-  dbDisconnect(con) #2
-  rm(con)
   ### Filter barometric records to the appropriate barometer
   df_baro <- df_baro %>%
     filter(Location %in% baro) %>%
@@ -810,11 +761,13 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
     ### Add legend items with colors for data being added to plot in this step
     if(loc == "SYW177"){
       ### Add legend items with colors for data being added to plot in this step
-      cols_legend <- append(cols_legend,c(cols[10]))
+      cols_legend <- append(cols_legend,c(cols[10],cols[5]))
       ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-      linetype_legend <- append(linetype_legend,c("Groundwater level (ft below ground surface) - prior" = "solid"))
+      linetype_legend <- append(linetype_legend,c("Groundwater level (ft below ground surface) - prior" = "solid",
+                                                  "Water Temperature (C) - prior" = "solid"))
       ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-      shape_legend <- append(shape_legend,c("Groundwater level (ft below ground surface) - prior" = NA))
+      shape_legend <- append(shape_legend,c("Groundwater level (ft below ground surface) - prior" = NA,
+                                            "Water Temperature (C) - prior" = NA))
 
     } else {
       ### Add legend items with colors for data being added to plot in this step
@@ -824,7 +777,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
       ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
       shape_legend <- append(shape_legend,c("Stage (ft) - prior" = NA))
 
-    }
+    
 
     cols_legend <- append(cols_legend,
                           switch(var2,
@@ -840,7 +793,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
                            switch(var2,
                                   "Temperature" = c("Water Temperature (C) - prior" = NA),
                                   "Discharge" = c("Discharge (cfs) - prior" = NA)))
-
+}
 }
   
   if(!is.null(df_stage) && nrow(df_stage) > 0) {
@@ -940,6 +893,9 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   
   file.rename(file, paste0(subdir, "/", hobo_txt_file))
   file.rename(paste0(updir,"/", hobo_file), paste0(subdir, "/", hobo_file))
+  
+  SendEmail(df=df_hobo, table=hobo_tbl, file=hobo_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  
   print(paste0("HOBO Data finished importing at ", Sys.time()))
   return("Import Successful")
 }
