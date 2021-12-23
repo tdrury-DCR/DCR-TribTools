@@ -223,7 +223,7 @@ plot <- eventReactive(input$process,{
 output$plot <- renderPlot({
   req(try(df()))
   plot()
-  if(file_type() == "baro" | well_file() == 1){
+  if(file_type() == "baro"){
     PREVIEW_BARO(df(), df_prior(), var2 = NULL)
   } else {
     switch(file_type(),

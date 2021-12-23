@@ -70,6 +70,16 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone 
 schema <- userlocation                 
 mayfly_tbl <- "tblMayfly"
 
+### Get existing Mayfly data for dup check
+mayfly_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+### Check for duplicate existing data in database
+duplicates <- semi_join(df, mayfly_existing, by="DateTimeUTC")
+
+if (nrow(duplicates) > 0){
+  stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," Mayfly records in the database."))
+}
+
 ### A function to fetch record IDs from the database table and assign record IDs to the new data
 setIDs <- function(){
   qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{mayfly_tbl}]"))
@@ -463,6 +473,9 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   dir.create(write_dir)
  
   file.rename(file, paste0(write_dir, "/", mayfly_file))
+  
+  SendEmail(df=df_mayfly, table=mayfly_tbl, file=mayfly_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  
   print(paste0("Mayfly Data finished importing at ", Sys.time()))
   return("Import Successful")
 }

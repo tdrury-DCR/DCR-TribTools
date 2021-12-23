@@ -20,7 +20,7 @@ ipak <- function(pkg){
 ### NOTE - Shiny must be installed and loaded in the LaunchAppGitHub.R script - any other packages requred should be listed below
 
 packages <- c("DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT", "naniar",
-              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue")
+              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue", "RDCOMClient")
 ipak(packages) 
 
 ### Set environment timezone
@@ -62,6 +62,7 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone 
   mayfly_data_dir <<- config[16]
   mayfly_data_processed <<- config[17]
   mayfly_table <<- "tblMayfly"
+  emaillist <<- config[19]
   
   ### Source Modules and functions
   source("mod_ratings.R")
@@ -69,6 +70,7 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone 
   source("mod_hobos.R")
   source("ProcessHOBO.R")
   source("ProcessMayflyData.R")
+  source("outlook_email.R")
 
 ### UI  ####
 ### font-family: 'Lobster', cursive;
@@ -139,12 +141,14 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone 
   mayfly_data_processed <<- config[17]
   mayfly_table <<- "tblMayfly"
   wave_db <<- config[7]
+  emaillist <<- NA # Edit after updating config file
   
   ### Source Modules and functions
   source("mod_ratings_q.R")
   source("Ratings.R")
   source("mod_hobos_q.R")
   source("ProcessHOBO.R")
+  source("outlook_email.R")
   # source("ProcessMayflyData.R")
   
   ui <-  navbarPage(
