@@ -26,7 +26,7 @@ HOBOcalcQ <- function(schema, loc, df_HOBO) {
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'America/New_York'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
   # database <- "DCR_DWSP"
   # con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')

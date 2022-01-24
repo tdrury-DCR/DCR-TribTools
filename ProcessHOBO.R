@@ -42,18 +42,18 @@
 # LOAD THIS FROM LAUNCH SCRIPT
 
 #### HOBO TOOL Funtion Args
-# hobo_path <- config[1]
-# updir <- config[2] ### Set directory to where exported .hobo and .txt are staged
+# hobo_path <- config[["HOBO_Imported"]]
+# updir <- config[["HOBO_Staging"]] ### Set directory to where exported .hobo and .txt are staged
 # hobo_db <- db ### Same as rating info - all in Hydro DB
-# baro_tbl <- config[4]
-# hobo_tbl <- config[5]
-# ImportFlagTable <- config[6]
+# baro_tbl <- config[["HOBO_BARO"]]
+# hobo_tbl <- config[["HOBO"]]
+# ImportFlagTable <- config[["HydroFlagIndex"]]
 
 ### NOTE: After processing, raw data (txt) and .hobo files will get moved to the appropriate location file
 
 # #Set user info
 # user <-  Sys.getenv("USERNAME")
-# userdata <- readxl::read_xlsx(path = config[10])
+# userdata <- readxl::read_xlsx(path = config[["Users"]])
 # username <- paste(userdata$FirstName[userdata$Username %in% user],userdata$LastName[userdata$Username %in% user],sep = " ")
 
 ###
@@ -121,7 +121,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
   ### A function to fetch record IDs from the database table and assign record IDs to the new data
   setIDs <- function(){
@@ -311,7 +311,7 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
     dsn <- 'DCR_DWSP_App_R'
     database <- "DCR_DWSP"
     tz <- 'UTC'
-    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{baro_tbl}")), value = df_baro, append = TRUE)
   ### Disconnect from db and remove connection obj
@@ -344,9 +344,9 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
 # ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[1] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 16.28 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 1.28 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -394,7 +394,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
   df_baro <- dbReadTable(con, Id(schema = schema, table = baro_tbl))
   
@@ -471,7 +471,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   ### Set record IDs
   setIDs <- function(){
     qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_tbl}]"))
@@ -579,7 +579,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     dsn <- 'DCR_DWSP_App_R'
     database <- "DCR_DWSP"
     tz <- 'America/New_York'
-    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
   ### Bring in stage and temperature manual measurements and filter to the date range of the HOBO data being imported
     df_stage  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
@@ -874,7 +874,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   ### Write data
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_tbl}")), value = df_hobo, append = TRUE)
 
