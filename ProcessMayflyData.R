@@ -7,7 +7,7 @@
 #  R version 3.5.3 (2019-03-11)  i386
 ##############################################################################.
 
-# mayfly_files <- list.files(config[16]) %>% print()
+# mayfly_files <- list.files(config[["Mayfly_Staging"]]) %>% print()
 # mayfly_file <- mayfly_files[5]
 # username <- "Dan Crocker"
 # stage <- 0.67 ### Enter stage at time of data download (Numeric entry in Shiny App)
@@ -63,7 +63,7 @@ df$Stage_ft <- df$Stage_ft/304.8
 dsn <- 'DCR_DWSP_App_R'
 database <- "DCR_DWSP"
 tz <- 'UTC'
-con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
 # database <- "DCR_DWSP"
 # con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
@@ -158,7 +158,7 @@ rm(con)
 dsn <- 'DCR_DWSP_App_R'
 database <- "DCR_DWSP"
 tz <- 'America/New_York'
-con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 # con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
 
 ### Bring in stage, temperature, and specific conductance manual measurements
@@ -197,7 +197,7 @@ df_conductivity <- df_conductivity %>%
 t <- min(df$DateTimeUTC)
 
 tz <- 'UTC'
-con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
 mayfly_prior <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
                                   [Location] = '{loc}'"))
@@ -449,7 +449,7 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   schema <- userlocation
   
   # database <- "DCR_DWSP" 
