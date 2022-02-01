@@ -22,7 +22,7 @@ file <- paste0(mayfly_data_dir,"/", mayfly_file)
 loc <- str_split_fixed(mayfly_file, "_", n = 2) 
 loc <- loc[1] %>% str_replace("WACH-","")
 
-df <- read_csv(file, skip = 7, guess_max = 100, 
+df <- read_csv(file, skip = 7, guess_max = 100, ### skip lines to header
                col_types = cols(
                  `Date and Time in UTC-5` = col_character(),
                  Hydros21cond = col_double(),
