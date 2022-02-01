@@ -7,7 +7,7 @@
 #  R version 3.5.3 (2019-03-11)  i386
 ##############################################################################.
 
-# mayfly_files <- list.files(config[16]) %>% print()
+# mayfly_files <- list.files(config[["Mayfly_Staging"]]) %>% print()
 # mayfly_file <- mayfly_files[5]
 # username <- "Dan Crocker"
 # stage <- 0.67 ### Enter stage at time of data download (Numeric entry in Shiny App)
@@ -63,12 +63,22 @@ df$Stage_ft <- df$Stage_ft/304.8
 dsn <- 'DCR_DWSP_App_R'
 database <- "DCR_DWSP"
 tz <- 'UTC'
-con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
 # database <- "DCR_DWSP"
 # con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
 schema <- userlocation                 
 mayfly_tbl <- "tblMayfly"
+
+### Get existing Mayfly data for dup check
+mayfly_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+### Check for duplicate existing data in database
+duplicates <- semi_join(df, mayfly_existing, by="DateTimeUTC")
+
+if (nrow(duplicates) > 0){
+  stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," Mayfly records in the database."))
+}
 
 ### A function to fetch record IDs from the database table and assign record IDs to the new data
 setIDs <- function(){
@@ -148,7 +158,7 @@ rm(con)
 dsn <- 'DCR_DWSP_App_R'
 database <- "DCR_DWSP"
 tz <- 'America/New_York'
-con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 # con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
 
 ### Bring in stage, temperature, and specific conductance manual measurements
@@ -187,7 +197,7 @@ df_conductivity <- df_conductivity %>%
 t <- min(df$DateTimeUTC)
 
 tz <- 'UTC'
-con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
 mayfly_prior <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
                                   [Location] = '{loc}'"))
@@ -254,11 +264,17 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
     prior <-  TRUE
   }
   
-  y1lim <- max(pd$Stage_ft)
+  y1lim <- if(nrow(df_stage) > 0){
+                  max(c(pd$Stage_ft,df_stage$FinalResult))
+                    } else {max(pd$Stage_ft)}
   
   y2lim <- switch (var2,
-    "Temperature" = max(pd$Logger_temp_c),
-    "Conductivity" = max(pd$Conductivity_uScm),
+    "Temperature" = if(!is.null(df_temp) && nrow(df_temp) > 0){
+                          max(c(pd$Logger_temp_c,df_temp$FinalResult)) 
+                      } else {max(pd$Logger_temp_c)},
+    "Conductivity" = if(!is.null(df_conductivity) && nrow(df_conductivity) > 0){
+                          max(c(pd$Conductivity_uScm,df_conductivity$FinalResult))
+                      } else {max(pd$Conductivity_uScm)},
     "Discharge" = max(pd$Discharge_cfs)
   )
   
@@ -353,6 +369,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
     plot <- plot + 
       geom_point(data = df_stage, aes(x = DateTimeET, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
     
+    ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[3]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
     linetype_legend <- append(linetype_legend,c("Stage (ft) - manual" = "blank"))
@@ -364,6 +381,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   if(!is.null(df_temp) && nrow(df_temp) > 0 && var2=="Temperature") {
     plot <- plot + 
       geom_point(data = df_temp, aes(x = DateTimeET, y = FinalResult*mult, color = "Water Temperature (C) - manual"), size = 2)
+    
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[6]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
@@ -375,6 +393,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   if(!is.null(df_conductivity) && nrow(df_conductivity) > 0 && var2=="Conductivity") {
     plot <- plot + 
       geom_point(data = df_conductivity, aes(x = DateTimeET, y = FinalResult*mult, color = "Conductivity (uS/cm) - manual"), size = 2)
+    
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[11]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
@@ -430,7 +449,7 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   schema <- userlocation
   
   # database <- "DCR_DWSP" 
@@ -454,6 +473,9 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   dir.create(write_dir)
  
   file.rename(file, paste0(write_dir, "/", mayfly_file))
+  
+  SendEmail(df=df_mayfly, table=mayfly_tbl, file=mayfly_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  
   print(paste0("Mayfly Data finished importing at ", Sys.time()))
   return("Import Successful")
 }

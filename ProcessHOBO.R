@@ -36,23 +36,24 @@
 # library(RODBC)
 # library(DBI)
 # library(readxl)
+# library(glue)
 
 # #### Config file
 # LOAD THIS FROM LAUNCH SCRIPT
 
 #### HOBO TOOL Funtion Args
-# hobo_path <- config[1]
-# updir <- config[2] ### Set directory to where exported .hobo and .txt are staged
+# hobo_path <- config[["HOBO_Imported"]]
+# updir <- config[["HOBO_Staging"]] ### Set directory to where exported .hobo and .txt are staged
 # hobo_db <- db ### Same as rating info - all in Hydro DB
-# baro_tbl <- config[4]
-# hobo_tbl <- config[5]
-# ImportFlagTable <- config[6]
+# baro_tbl <- config[["HOBO_BARO"]]
+# hobo_tbl <- config[["HOBO"]]
+# ImportFlagTable <- config[["HydroFlagIndex"]]
 
 ### NOTE: After processing, raw data (txt) and .hobo files will get moved to the appropriate location file
 
 # #Set user info
 # user <-  Sys.getenv("USERNAME")
-# userdata <- readxl::read_xlsx(path = config[10])
+# userdata <- readxl::read_xlsx(path = config[["Users"]])
 # username <- paste(userdata$FirstName[userdata$Username %in% user],userdata$LastName[userdata$Username %in% user],sep = " ")
 
 ###
@@ -120,7 +121,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
   ### A function to fetch record IDs from the database table and assign record IDs to the new data
   setIDs <- function(){
@@ -142,6 +143,16 @@ PROCESS_BARO <- function(baro_file, userlocation){
   ### Reorder columns to match db
   col_order <- c(dbListFields(con, schema_name = schema, name = baro_tbl), "Logger_temp_f")
   baro <-  baro[col_order]
+  
+  ### Check for duplicate data in the database
+  baro_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+
+  duplicates <- semi_join(baro, baro_existing, by="DateTimeUTC")
+  
+  if (nrow(duplicates) > 0){
+    stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," BARO records in the database."))
+  }
   
   ### Get appropriate barometric file based on location
 
@@ -213,11 +224,7 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
   cols <- c("Air Temperature (C)" = "turquoise3",
             "Air Temperature (C) - prior" = "yellowgreen",
             "Air Pressure (psi)" = "sienna2", 
-            "Air Pressure (psi) - prior" = "tomato4",
-            "Water Temperature (C)" = "purple4",
-            "Water Temperature (C) - prior" = "orchid4",
-            "Groundwater level (ft below ground surface)" = "blue3",
-            "Groundwater level (ft below ground surface) - prior" = "blue4"
+            "Air Pressure (psi) - prior" = "tomato4"
   )
   
   if(is.null(df_prior)){
@@ -226,27 +233,16 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
     prior <-  TRUE
   }
   
-  if(loc == "SYW177"){
-    title <- paste0("Groundwater Level and Temperature from HOBO\n At Location ", loc)
-    y1lab <- "Groundwater Level (ft below ground surface)"
-    y1lim <- max(pd$Water_Level_ft)
-    y1data <- pd$Water_Level_ft
-    y1prior <- df_prior$Water_Level_ft
-    y1color <- "Groundwater level (ft below ground surface)"
-    y1prior_col <- "Groundwater level (ft below ground surface) - prior"
-    y2col <- "Water Temperature (C)"
-    y2prior_col <- "Water Temperature (C) - prior"
-  } else {
     title <- paste0("Raw Air Pressure and Air Temperature from Barometric HOBO\n At Location ", loc)
     y1lab <- "Air Pressure (psi)"
     y1lim <- max(pd$Logger_psi)
     y1data <- pd$Logger_psi
     y1prior <- df_prior$Logger_psi
     y1color <- "Air Pressure (psi)"
-    y1prior_col <- "Air Pressure (psi)"
+    y1prior_col <- "Air Pressure (psi) - prior"
     y2col <- "Air Temperature (C)"
     y2prior_col <- "Air Temperature (C) - prior"
-  }
+
   
   y2lim <- max(pd$Logger_temp_c)
   y2temp <- 
@@ -268,15 +264,11 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
       # text = paste("Date-Time: ", df_prior$DateTimeUTC, "<br>", "Air Pressure (psi): ", df_prior$Logger_psi))) + #, size = 1) +
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
   }
-  if(loc == "SYW177"){
-    plot <- plot +
-      scale_y_continuous(breaks = pretty_breaks(),limits = c(1.2 * y1lim, NA), trans = scales::reverse_trans(),
-                         sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Water Temperature (C)"))
-  } else {
+
     plot <- plot +
       scale_y_continuous(breaks = pretty_breaks(),limits = c(NA, 1.2 * y1lim),
                          sec.axis = sec_axis(~./mult, breaks = pretty_breaks(), name = "Air Temperature (C)"))
-  }
+
   plot <- plot +
     scale_x_datetime(breaks = pretty_breaks(n=12)) + 
     scale_colour_manual(values = cols) +
@@ -287,6 +279,7 @@ PREVIEW_BARO <- function(df_baro, df_prior = NULL, var2 = NULL){
     theme_linedraw() +
     theme(plot.title = element_text(color= "black", face="bold", size=14, vjust = 1, hjust = 0.5),
           legend.position = "bottom",
+          legend.text = element_text(margin = margin(r=0.8, unit="cm")),
           axis.title.x = element_text(angle = 0, face = "bold", color = "black"),
           axis.title.y = element_text(angle = 90, face = "bold", color = "black"))
   # plot <- plotly::ggplotly(plot, tooltip = c("text"))
@@ -318,7 +311,7 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
     dsn <- 'DCR_DWSP_App_R'
     database <- "DCR_DWSP"
     tz <- 'UTC'
-    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{baro_tbl}")), value = df_baro, append = TRUE)
   ### Disconnect from db and remove connection obj
@@ -337,6 +330,8 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   file.rename(file, paste0(subdir, "/", baro_file))
   file.rename(hobo_file, paste0(subdir, "/", hobo_name))
   
+  SendEmail(df=df_baro, table=baro_tbl, file=baro_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  
   return(paste0("Barometric HOBO Data finished importing at ", Sys.time()))
 } ### End function
 
@@ -349,9 +344,9 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
 # ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[3] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[1] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 2 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 1.28 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -399,13 +394,29 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
   df_baro <- dbReadTable(con, Id(schema = schema, table = baro_tbl))
   
+  ### Get existing data to check for duplicates
+  if(loc == "SYW177"){
+    hobo_tbl <- "tbl_HOBO_WELLS"
+  }
+  
+  hobo_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+                                  [Location] = '{loc}'"))
+
   ### Disconnect from db and remove connection obj
   dbDisconnect(con) #2
   rm(con)
+  
+  ### Check for duplicate existing data in database
+  duplicates <- semi_join(df, hobo_existing, by="DateTimeUTC")
+  
+  if (nrow(duplicates) > 0){
+    stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," HOBO records in the database."))
+  }
+  
   ### Filter barometric records to the appropriate barometer
   df_baro <- df_baro %>%
     filter(Location %in% baro) %>%
@@ -443,7 +454,6 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   source("HOBO_calcQ.R")
   if(loc == "SYW177"){
     ### Well depth from casing top to bottom = 26.90625, stick-up height (2.20 + WLM calibration adjustment) = 2.00 ft 
-    hobo_tbl <- "tbl_HOBO_WELLS"
     df_HOBO <- df2 %>% 
       mutate("RatingFlag" = NA,
              "Discharge_cfs" = NA,
@@ -461,7 +471,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   ### Set record IDs
   setIDs <- function(){
     qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_tbl}]"))
@@ -569,7 +579,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     dsn <- 'DCR_DWSP_App_R'
     database <- "DCR_DWSP"
     tz <- 'America/New_York'
-    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+    con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
   ### Bring in stage and temperature manual measurements and filter to the date range of the HOBO data being imported
     df_stage  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
@@ -690,7 +700,9 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
     
   } else {
     y1lab <- "Stage (ft)"
-    y1lim <- max(pd$Stage_ft)
+    if(nrow(df_stage) > 0){
+                 y1lim <- max(c(pd$Stage_ft,df_stage$FinalResult))
+                    } else {y1lim <- max(pd$Stage_ft)}
     y1data <- pd$Stage_ft
     y1prior <- df_prior$Stage_ft
     y1prior_col <- "Stage (ft) - prior"
@@ -700,7 +712,9 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
       y2data <- pd$Logger_temp_c
       y2prior <- df_prior$Logger_temp_c
       y2col <- "Water Temperature (C)"
-      y2lim <- max(pd$Logger_temp_c)
+      if(!is.null(df_temp) && nrow(df_temp) > 0){
+              y2lim <- max(c(pd$Logger_temp_c,df_temp$FinalResult)) 
+                    } else {y2lim <- max(pd$Logger_temp_c)}
       y2prior_col <- "Water Temperature (C) - prior"
       y2lab <- "Water Temperature (C)"
       ### Add legend items with colors for data being added to plot in this step
@@ -747,11 +761,13 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
     ### Add legend items with colors for data being added to plot in this step
     if(loc == "SYW177"){
       ### Add legend items with colors for data being added to plot in this step
-      cols_legend <- append(cols_legend,c(cols[10]))
+      cols_legend <- append(cols_legend,c(cols[10],cols[5]))
       ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-      linetype_legend <- append(linetype_legend,c("Groundwater level (ft below ground surface) - prior" = "solid"))
+      linetype_legend <- append(linetype_legend,c("Groundwater level (ft below ground surface) - prior" = "solid",
+                                                  "Water Temperature (C) - prior" = "solid"))
       ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-      shape_legend <- append(shape_legend,c("Groundwater level (ft below ground surface) - prior" = NA))
+      shape_legend <- append(shape_legend,c("Groundwater level (ft below ground surface) - prior" = NA,
+                                            "Water Temperature (C) - prior" = NA))
 
     } else {
       ### Add legend items with colors for data being added to plot in this step
@@ -761,7 +777,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
       ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
       shape_legend <- append(shape_legend,c("Stage (ft) - prior" = NA))
 
-    }
+    
 
     cols_legend <- append(cols_legend,
                           switch(var2,
@@ -777,12 +793,13 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
                            switch(var2,
                                   "Temperature" = c("Water Temperature (C) - prior" = NA),
                                   "Discharge" = c("Discharge (cfs) - prior" = NA)))
-
+}
 }
   
   if(!is.null(df_stage) && nrow(df_stage) > 0) {
     plot <- plot +
       geom_point(data = df_stage, aes(x = DateTimeET, y = FinalResult, color = "Stage (ft) - manual"), size = 2)
+
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[3]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
@@ -794,6 +811,7 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
   if(!is.null(df_temp) && nrow(df_temp) > 0 && var2=="Temperature") {
     plot <- plot +
       geom_point(data = df_temp, aes(x = DateTimeET, y = FinalResult*mult, color = "Water Temperature (C) - manual"), size = 2)
+    
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[6]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
@@ -856,7 +874,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[18], timezone = tz)
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   ### Write data
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_tbl}")), value = df_hobo, append = TRUE)
 
@@ -875,6 +893,9 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   
   file.rename(file, paste0(subdir, "/", hobo_txt_file))
   file.rename(paste0(updir,"/", hobo_file), paste0(subdir, "/", hobo_file))
+  
+  SendEmail(df=df_hobo, table=hobo_tbl, file=hobo_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  
   print(paste0("HOBO Data finished importing at ", Sys.time()))
   return("Import Successful")
 }
