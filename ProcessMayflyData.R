@@ -6,11 +6,11 @@
 #  GIT REPO:
 #  R version 3.5.3 (2019-03-11)  i386
 ##############################################################################.
-
-# mayfly_files <- list.files(config[["Mayfly_Staging"]]) %>% print()
-# mayfly_file <- mayfly_files[5]
+# 
+# mayfly_files <- list.files(paste0(wach_team_root, config[["Mayfly_Staging"]])) %>% print()
+# mayfly_file <- mayfly_files[2]
 # username <- "Dan Crocker"
-# stage <- 0.67 ### Enter stage at time of data download (Numeric entry in Shiny App)
+# stage <- 1.64 ### Enter stage at time of data download (Numeric entry in Shiny App)
 #   
 PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
   
@@ -34,16 +34,19 @@ df <- read_csv(file, skip = 7, guess_max = 100, ### skip lines to header
   mutate("Location" = loc, "ID" = NA_integer_)
 
 names(df) <- c("DateTimeUTC", "Conductivity_uScm", "Stage_ft", "Logger_temp_c", "Location","ID")
+### Note - the time offset is fixed to UTC-5, so add 5 hrs to get back to UTC
 
 ### Format Date-Time stamp - Need two tries here because Excel will mess with date formats 
 if(str_detect(df$DateTimeUTC[1], "/")) {
   print("Dates formatted with slashes")
-  df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC")
+  df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC") 
+  df$DateTimeUTC <- df$DateTimeUTC + lubridate::hours(5)
 }
 
 if(str_detect(df$DateTimeUTC[1], "-")) {
   print("Dates formatted with dashes")
   df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
+  df$DateTimeUTC <- df$DateTimeUTC + lubridate::hours(5)
 }
 ### Filter out records where all Hydros21 values are -9999 
 na_recs <- which(rowSums(df[,2:4])  == -29997) %>% as.numeric()
@@ -333,9 +336,9 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
 
   plot <- switch (var2,
-      "Temperature" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Logger_temp_c * mult, color = "Water Temperature (C) - prior"), size = 1),
-      "Conductivity" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Conductivity_uScm * mult, color = "Conductivity (uS/cm) - prior"), size = 1),
-      "Discharge" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = df_prior$Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
+      "Temperature" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = Logger_temp_c * mult, color = "Water Temperature (C) - prior"), size = 1),
+      "Conductivity" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = Conductivity_uScm * mult, color = "Conductivity (uS/cm) - prior"), size = 1),
+      "Discharge" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
     )
   
   ### Add legend items with colors for data being added to plot in this step
@@ -392,7 +395,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   
   if(!is.null(df_conductivity) && nrow(df_conductivity) > 0 && var2=="Conductivity") {
     plot <- plot + 
-      geom_point(data = df_conductivity, aes(x = DateTimeET, y = FinalResult*mult, color = "Conductivity (uS/cm) - manual"), size = 2)
+      geom_point(data = df_conductivity, aes(x = DateTimeET, y = FinalResult * mult, color = "Conductivity (uS/cm) - manual"), size = 2)
     
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[11]))
