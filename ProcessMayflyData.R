@@ -41,13 +41,14 @@ if(str_detect(df$DateTimeUTC[1], "/")) {
   print("Dates formatted with slashes")
   df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC") 
   df$DateTimeUTC <- df$DateTimeUTC + lubridate::hours(5)
+} else {
+  if(str_detect(df$DateTimeUTC[1], "-")) {
+    print("Dates formatted with dashes")
+    df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
+    df$DateTimeUTC <- df$DateTimeUTC + lubridate::hours(5)
+  }
 }
-
-if(str_detect(df$DateTimeUTC[1], "-")) {
-  print("Dates formatted with dashes")
-  df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
-  df$DateTimeUTC <- df$DateTimeUTC + lubridate::hours(5)
-}
+  
 ### Filter out records where all Hydros21 values are -9999 
 na_recs <- which(rowSums(df[,2:4])  == -29997) %>% as.numeric()
 
