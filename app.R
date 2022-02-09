@@ -35,7 +35,7 @@ if (userlocation == "Wachusett") {
 
 #Set user info
 user <-  Sys.getenv("USERNAME") %>% toupper()
-userdata <- readxl::read_xlsx(path = paste0(rootdir, config[["Users"]]))
+userdata <- readxl::read_xlsx(path = paste0(wach_team_root, config[["Users"]]))
 userdata <- userdata[toupper(userdata$Username) %in% user,]
 username <<- paste(userdata[2], userdata[1], sep = " ")
 userlocation <<- paste0(userdata[6])
@@ -68,7 +68,7 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connectio
   wave_db <<- config[["DB_Access"]]
   mayfly_data_dir <<- paste0(rootdir, config[["Mayfly_Staging"]])
   mayfly_data_processed <<- paste0(rootdir, config[["Mayfly_Imported"]])
-  mayfly_table <<- "tblMayfly"
+  mayfly_table <<- config[["Mayfly Table"]]
   emaillist <<- config[["Email_List"]]
   
   ### Source Modules and functions
@@ -146,7 +146,7 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connectio
   ImportFlagTable <<- config[["HydroFlagIndex"]]
   mayfly_data_dir <<- paste0(rootdir, config[["Mayfly_Staging"]])
   mayfly_data_processed <<- paste0(rootdir, config[["Mayfly_Imported"]])
-  mayfly_table <<- "tblMayfly"
+  mayfly_table <<- config[["Mayfly Table"]]
   wave_db <<- config[["DB_Access"]]
   emaillist <<- NA # Edit after updating config file
   
