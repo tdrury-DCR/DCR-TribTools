@@ -54,11 +54,14 @@ HOBO_UI <- function(id) {
               ),
               tabPanel("TABULAR FLAG DATA PREVIEW", ### FLAG DATA PREVIEW PAGE ####
                        dataTableOutput(ns("table_flag_preview"))
+              ),
+              tabPanel("TRIBUTARY MONITORING NOTES",
+                       dataTableOutput(ns("trib_monitoring"))
               )
-            )# End Tabset Panel
-          ) # End Col
-        ) # End FR
-    ) # End Div
+          )# End Tabset Panel
+        ) # End Col
+      ) # End FR
+  ) # End Div
   ) # End Taglist
 } # End UI  ####
             
@@ -386,6 +389,16 @@ output$table_data_preview <- renderDataTable({
 output$table_flag_preview <- renderDataTable({
   req(try(df_flags()))
   datatable(df_flags(), options = list(pageLength = 25))
+})
+
+### Trib Monitoring Table from Database
+output$trib_monitoring <- renderDataTable({
+  req(try(df_trib_monitoring))
+  trib_monitoring <- df_trib_monitoring %>% 
+    select(-"Edit_timestamp") %>% 
+    dplyr::arrange(desc(FieldObsDate))
+  
+  datatable(trib_monitoring, filter = "top", options = list(pageLength = 25))
 })
 
 } # end server function

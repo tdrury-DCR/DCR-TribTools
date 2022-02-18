@@ -13,7 +13,7 @@
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg))
-    install.packages(new.pkg, dependencies = TRUE, repos="http://cran.rstudio.com/", quiet = T, verbose = F)
+    install.packages(new.pkg, dependencies = TRUE, repos="https://cloud.r-project.org", quiet = T, verbose = F)
   sapply(pkg, require, character.only = TRUE)
 }
 ### Package List ####
@@ -54,6 +54,7 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connectio
   rating_data <- config[["RatingsTable"]] ### Get the rating information
   df_discharges <<- dbReadTable(con, Id(schema = schema, table = measurement_data))
   df_ratings <<- dbReadTable(con, Id(schema = schema, table = rating_data))  
+  df_trib_monitoring <<- dbReadTable(con, Id(schema = schema, table = "tblTributaryFieldNotes")) 
   
   dbDisconnect(con)
   rm(con)
