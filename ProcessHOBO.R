@@ -432,7 +432,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   end_time <- max(df2$DateTimeUTC)
   
   missing_baro_times <- df2$DateTimeUTC[which(is.na(df2$Logger_psi_baro))]
-  print(glue("The following HOBO times (UTC) have no matching barometer data for compensation:\n {missing_baro_times}"))
+  print(glue("The following HOBO times (UTC) have no matching barometer data for compensation: {missing_baro_times}"))
   
   if(any(is.na(df2$Logger_psi_baro))){
     stop("It looks like there is missing barometric compensation data! This needs to be provided or else the discharge calculations will fail.\nSee log file for missing times")
