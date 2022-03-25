@@ -431,8 +431,11 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   ### Find the last time-stamp
   end_time <- max(df2$DateTimeUTC)
   
+  missing_baro_times <- df2$DateTimeUTC[which(is.na(df2$Logger_psi_baro))]
+  print(glue("The following HOBO times (UTC) have no matching barometer data for compensation:\n {missing_baro_times}"))
+  
   if(any(is.na(df2$Logger_psi_baro))){
-    stop("It looks like there is missing barometric compensation data! This needs to be provided or else the discharge calculations will fail.")
+    stop("It looks like there is missing barometric compensation data! This needs to be provided or else the discharge calculations will fail.\nSee log file for missing times")
   }
   ### Calculate raw stage
   df2$raw_stage <- NA ### create empty column
