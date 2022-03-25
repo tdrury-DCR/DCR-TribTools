@@ -420,7 +420,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   ### Filter barometric records to the appropriate barometer
   df_baro <- df_baro %>%
     filter(Location %in% baro) %>%
-    drop_na()
+    drop_na(Logger_psi)
   ### Fix time zone designation
   # df_baro$DateTimeUTC <-  force_tz(df_baro$DateTimeUTC, tzone = "UTC")
   # df_baro$DateTimeUTC <- with_tz(df_baro$DateTimeUTC, tzone = "America/New_York")
