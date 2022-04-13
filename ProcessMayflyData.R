@@ -184,16 +184,16 @@ rm(con)
 
 ###  Filter to the date range of the HOBO data being imported
 df_stage <- df_stage %>% 
-  filter(DateTimeET >= min(df$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
-         DateTimeET <= max(df$DateTimeUTC))
+  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+         DateTimeET <= max(df$DateTimeUTC) + hours(2))
 
 df_temp <- df_temp %>% 
-  filter(DateTimeET >= min(df$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
-         DateTimeET <= max(df$DateTimeUTC))
+  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+         DateTimeET <= max(df$DateTimeUTC) + hours(2))
 
 df_conductivity <- df_conductivity %>% 
-  filter(DateTimeET >= min(df$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
-         DateTimeET <= max(df$DateTimeUTC))
+  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+         DateTimeET <= max(df$DateTimeUTC) + hours(2))
 
 ### df_prior ####
 

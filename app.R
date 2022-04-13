@@ -35,7 +35,7 @@ if (userlocation == "Wachusett") {
 
 #Set user info
 user <-  Sys.getenv("USERNAME") %>% toupper()
-userdata <- readxl::read_xlsx(path = paste0(wach_team_root, config[["Users"]]))
+userdata <- readxl::read_xlsx(path = paste0(user_root, config[["Users"]]))
 userdata <- userdata[toupper(userdata$Username) %in% user,]
 username <<- paste(userdata[2], userdata[1], sep = " ")
 userlocation <<- paste0(userdata[6])
