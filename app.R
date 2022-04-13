@@ -32,6 +32,7 @@ if (userlocation == "Wachusett") {
 } else {
   rootdir <- quab_team_root
 }
+  userdir <- user_root
 
 #Set user info
 user <-  Sys.getenv("USERNAME") %>% toupper()
