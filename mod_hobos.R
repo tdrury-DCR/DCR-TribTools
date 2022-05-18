@@ -169,7 +169,7 @@ var2_choices <- reactive({
   if (file_type() == "hobo") {
     c("Discharge", "Temperature")
   } else if (file_type() == "mayfly") {
-    c("Discharge", "Temperature", "Conductivity")
+    c("Temperature", "Conductivity")
   }
 })
     
@@ -179,7 +179,7 @@ output$var2.UI <- renderUI({
   radioButtons(inputId = ns("var2"),
                label = "Select the secondary Y axis value to plot:", 
                choices = var2_choices(),
-               selected = "Discharge", 
+               selected = var2_choices()[1], 
                inline = T,
                width = "100%")
 })
@@ -361,7 +361,7 @@ dt_colnames <- reactive({
     switch(file_type(),
            "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)"),
            "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
-           "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)", "Conductivity (uS/cm)")
+           "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "RawStage (ft)", "RawConductivity (uS/cm)")
     )
   }
 })
@@ -372,7 +372,12 @@ dt_colnames <- reactive({
 ### Processed data Table - Only make table if processing is successful
 output$table_data_preview <- renderDataTable({
   req(try(df()))
-  dt <- df()
+  dt <- if(file_type() == "mayfly") {
+    df()[ , c(1:5,8)]
+  } else {
+    df()
+  }
+  
   dt$DateTimeUTC <- as.character(format(dt$DateTimeUTC, format = "%Y-%m-%d %H:%M"))
   datatable(dt, 
             colnames = dt_colnames(),
