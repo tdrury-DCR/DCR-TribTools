@@ -229,7 +229,7 @@ return(dfs)
 
 ### Run function locally, comment out when deployed in Shiny
 
-dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = stage, username = "Dan Crocker", userlocation = userlocation)
+# dfs <- PROCESS_MAYFLY(mayfly_file = mayfly_file , stage = stage, username = "Dan Crocker", userlocation = userlocation)
 
 PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp = NULL, df_conductivity = NULL, var2 = NULL) {
   
