@@ -33,13 +33,13 @@
 # ### Set db for connection ####
 ### CONNECT TO A FRONT-END DATABASE ####
   # ### Set DB
-  # database <- 'DCR_DWSP'
-  # schema <- 'Wachusett'
-  # tz <- 'America/New_York'
-  # ### Connect to Database 
-  # con <- dbConnect(odbc::odbc(), database, timezone = tz)
-  # 
-
+#   database <- 'DCR_DWSP'
+#   schema <- 'Wachusett'
+#   tz <- 'America/New_York'
+#   ### Connect to Database
+#   con <- dbConnect(odbc::odbc(), database, timezone = tz)
+#   # 
+# 
 # tbl_ratings <- dbReadTable(con, Id(schema = schema, table = 'tblRatings'))
 # tbl_discharges <- dbReadTable(con, Id(schema = schema, table = 'tblDischargeMeasurements'))
 # dbDisconnect(con)
@@ -49,12 +49,12 @@
 # tbl_discharges <- df_discharges
   
 # ### FUNCTION ARGS ####
-# locs <- unique(df_discharges$Location)
+# locs <- unique(tbl_discharges$Location)
 # locs # Look at the locations
-# loc <- locs[8] # Pick a location
-# ratingNo <-  3.01
-# drop_meas <- NULL
-# offset1 <- 0.028
+# loc <- locs[9] # Pick a location
+# ratingNo <-  1.01
+# drop_meas <- NA
+# offset1 <- 0.84
 # break1 <- 0
 # offset2 <- 0
 # break2 <- 0
@@ -62,7 +62,7 @@
 # new_rating <- 1.02
 #_________________________________________________________________________________________________________________________________
 ### NEW RATING FROM MEASUREMENTS ####
-MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_meas = NULL, break1 = NULL, offset2 =  NULL, break2 = NULL, offset3 = NULL, new_rating = NULL){
+MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_meas = NA, break1 = NA, offset2 =  NA, break2 = NA, offset3 = NA, new_rating = NA){
   
   # A function to pull characters from the right side of a string
   substrRight <- function(x, n){
@@ -70,6 +70,13 @@ MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_me
   }
 # tbl_measurements <- data  
   
+# Change break values of zero to NA
+  
+break1 <- ifelse(break1 == 0, NA, break1)  
+break2 <- ifelse(break2 == 0, NA, break2)  
+offset1 <- ifelse(offset1 == 0, NA, offset1)  
+offset2 <- ifelse(offset2 == 0, NA, offset2)  
+offset3 <- ifelse(offset3 == 0, NA, offset3)  
   
 tbl_ratings <- tbl_ratings %>% 
   mutate(RatingDatumOffset = ifelse(is.na(RatingDatumOffset), 0, RatingDatumOffset))
@@ -81,7 +88,7 @@ loc_ratings <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4))
 current_rating <- tbl_ratings %>% filter(MWRA_Loc == substrRight(loc, 4), IsCurrent == TRUE)
 active_rating <- current_rating$RatingNum
 
-if(is.null(new_rating)){
+if(is.na(new_rating)){
   new_rating <- active_rating + 0.01
 } 
   
@@ -98,7 +105,7 @@ data1 <- tbl_discharges %>%
 data1$Measurement_Weight <- replace_na(data1$Measurement_Weight, 70)
 data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
 
-if(!is.null(drop_meas)){
+if(!is.na(drop_meas)){
   data1 <- filter(data1, !MeasurementNumber %in% drop_meas)
 }
 
@@ -124,9 +131,9 @@ gaugings <- data1[,c("Stage_ft","Discharge_cfs","MeasurementNumber","Measurement
 names(gaugings) <- c("stage", "discharge","num","Measurement_Rated", "DateTimeStartET")
 
 ### Assign parts for rating ####
-if(!is.null(break2)){
+if(!is.na(break2)){
   parts <- 3
-} else if(!is.null(break1)){
+} else if(!is.na(break1)){
   parts <- 2
 } else {
   parts <- 1
@@ -311,12 +318,12 @@ maxstage <- max(gaugings$stage) + 0.25
 stages <- seq(minstage, maxstage, by = 0.02)
 
 if(parts == 1){
-  break1 <- NULL
-  break2 <- NULL
+  break1 <- NA
+  break2 <- NA
   r <- r_1part(gaugings, offset1)
 } else if(parts == 2) {
   break1 <- break1
-  break2 <- NULL
+  break2 <- NA
   r <-  r_2part(gaugings, offset1, break1, offset2)
 } else {
   break1 <- break1
@@ -329,9 +336,9 @@ df_Q <- as_tibble(l)
 
 ### Assign the rating part to each stage ####
 part <- function(x){  
-  if(is.null(break1)){# There are no breaks, part is 1
+  if(is.na(break1)){# There are no breaks, part is 1
     1
-  } else if(is.null(break2)){ # There are only 2 parts, so check if part 1 or 2
+  } else if(is.na(break2)){ # There are only 2 parts, so check if part 1 or 2
     if(x < break1){
       1 
       } else {
@@ -458,7 +465,7 @@ return(dfs)
 }
 
 ### RUN THE FUNCTION ####
-# dfs <- MAKE_RATING(tbl_discharges, tbl_ratings, loc, offset1, drop_meas = drop_meas, break1 = NULL, break2 = NULL, offset2 = NULL, offset3 = NULL )
+# dfs <- MAKE_RATING(tbl_discharges, tbl_ratings, loc, offset1, drop_meas = drop_meas, break1 = NA, break2 = NA, offset2 = NA, offset3 = NA )
 
 #_________________________________________________________________________________________________________________________________
 ### Plot discharge measurements ####
@@ -605,11 +612,11 @@ parts <- rating$Parts
 stages <- seq(minstage, maxstage, by = 0.02)
 
 if(parts == 1){
-  break1 <- NULL
-  break2 <- NULL
+  break1 <- NA
+  break2 <- NA
 } else if(parts == 2) {
   break1 <- rating$Break1
-  break2 <- NULL
+  break2 <- NA
 } else {
   break1 <- rating$Break1
   break2 <- rating$Break2
@@ -620,9 +627,9 @@ df_Q <- as_tibble(l)
 
 ### Assign the rating part to each stage ####
 part <- function(x){  
-  if(is.null(break1)){# There are no breaks, part is 1
+  if(is.na(break1)){# There are no breaks, part is 1
     1
-  } else if(is.null(break2)){ # There are only 2 parts, so check if part 1 or 2
+  } else if(is.na(break2)){ # There are only 2 parts, so check if part 1 or 2
     if(x < break1){
       1 
     } else {
@@ -641,21 +648,21 @@ part <- function(x){
 
 
 ### Assign parts for rating ####
-if(!is.null(break2)){
+if(!is.na(break2)){
   parts <- 3
   eq_part1 <- paste0("Q = ",rating$C1,"*(h-",rating$a1,")^",rating$n1)
   eq_part2 <- paste0("Q = ",rating$C2,"*(h-",rating$a2,")^",rating$n2)
   eq_part3 <- paste0("Q = ",rating$C3,"*(h-",rating$a3,")^",rating$n3)
-} else if(!is.null(break1)){
+} else if(!is.na(break1)){
   parts <- 2
   eq_part1 <- paste0("Q = ",rating$C1,"*(h-",rating$a1,")^",rating$n1)
   eq_part2 <- paste0("Q = ",rating$C2,"*(h-",rating$a2,")^",rating$n2)
-  eq_part3 <- NULL
+  eq_part3 <- NA
 } else {
   parts <- 1
   eq_part1 <- paste0("Q = ",rating$C1,"*(h-",rating$a1,")^",rating$n1)
-  eq_part2 <- NULL
-  eq_part3 <- NULL
+  eq_part2 <- NA
+  eq_part3 <- NA
 }
 
 ### Assign the part to each stage value

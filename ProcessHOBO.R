@@ -454,7 +454,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   df2$Stage_ft <- round(df2$raw_stage + offset, digits = 3)
   
   ### Source the function to calculate discharges
-  source("HOBO_calcQ.R")
+  # source("HOBO_calcQ.R")
   if(loc == "SYW177"){
     ### Well depth from casing top to bottom = 26.90625, stick-up height (2.20 + WLM calibration adjustment) = 2.00 ft 
     df_HOBO <- df2 %>% 
