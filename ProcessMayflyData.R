@@ -109,45 +109,6 @@ setIDs <- function(){
 }
 df$ID <- setIDs()
 
-#### Moved this to Mayfly_Correct.R 
-# source("HOBO_calcQ.R")
-#   ### Calcualte all discharges and save df
-#   df <- HOBOcalcQ(schema = "Wachusett", loc = loc, df_HOBO = df)
-# 
-# ### Make a flag df if there are any discharge related flags (only above/below rating curve can be automatically calculated)
-# setFlagIDs <- function(){
-#   if(all(is.na(df$RatingFlag)) == FALSE){ # Condition returns FALSE if there is at least 1 non-NA value, if so proceed
-#     ### Split the flags into a separate df and assign new ID
-#     df_flags <- df[,c("ID","RatingFlag")] %>%
-#       rename("SampleID" = ID, "FlagCode" = RatingFlag) %>%
-#       drop_na()
-#     
-#     query.flags <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{ImportFlagTable}]"))
-#     # Get current max ID
-#     if(is.na(query.flags)) {
-#       query.flags <- 0
-#     } else {
-#       query.flags <- query.flags
-#     }
-#     ID.max.flags <- as.numeric(unlist(query.flags))
-#     rm(query.flags)
-#     
-#     ### ID flags
-#     df_flags$ID <- seq.int(nrow(df_flags)) + ID.max.flags
-#     df_flags$DataTableName <- mayfly_table
-#     df_flags$DateFlagged <-  Sys.Date()
-#     df_flags$ImportStaff <-  username
-#     df_flags$Comment <- "Flags generated during data import"
-#     
-#     # Reorder df_flags columns to match the database table exactly # Add code to Skip if no df_flags
-#     df_flags <- df_flags[,c(3,4,1,2,5,6,7)]
-# 
-#   } else {
-#     df_flags <- NA
-#   }
-# } # End set flags function
-# df_flags <- setFlagIDs()
-
 dbDisconnect(con)
 rm(con)
 
@@ -215,7 +176,7 @@ rm(con)
 
 dfs <- list(
   "df" = df,
-  "df_flag" = df_flags,
+  "df_flag" = NA,
   "df_prior" = mayfly_prior,
   "df_stage" = df_stage,
   "df_temp" = df_temp,
@@ -444,8 +405,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
 # Comment out if running in shiny
 # df_mayfly <- PROCESS_HOBO(hobo_file = hobo_file, stage = stage)
 
-
-IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
+IMPORT_MAYFLY <- function(df_mayfly, mayfly_file, userlocation){
   print(paste0("Mayfly Data started importing at ", Sys.time()))
   
   file <- paste0(mayfly_data_dir,"/", mayfly_file)
@@ -463,13 +423,6 @@ IMPORT_MAYFLY <- function(df_mayfly, df_flags, mayfly_file, userlocation){
   
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{mayfly_tbl}")), value = df_mayfly, append = TRUE)
   
-  # Flag data
-  if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
-    print("Importing flags...")
-    odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
-  } else {
-    print("No flags to import")
-  }
   # Disconnect from db and remove connection obj
   dbDisconnect(con)
   rm(con)

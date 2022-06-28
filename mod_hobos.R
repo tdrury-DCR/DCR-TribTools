@@ -69,7 +69,7 @@ HOBO_UI <- function(id) {
 ###         SERVER          ####
 ################################.
         
-HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, hobo_tbl, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username, userlocation){  # Same as rating info - all in Hydro DB
+HOBO <- function(input, output, session, hobo_path, updir, hobo_db, df_trib_monitoring, baro_tbl, hobo_tbl, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username, userlocation){  # Same as rating info - all in Hydro DB
 
 ### Source the HOBO functions ####
   source("ProcessHOBO.R", local = T) ### source Script ####
@@ -225,7 +225,7 @@ plot <- eventReactive(input$process,{
 #### PLOT OUTPUT ####
 output$plot <- renderPlot({
   req(try(df()))
-  plot()
+  # plot()
   if(file_type() == "baro"){
     PREVIEW_BARO(df(), df_prior(), var2 = NULL)
   } else {
@@ -274,7 +274,7 @@ import_status <- reactive({
 df <- reactive({
   dfs()[[1]]
 })
-df_flags  <- reactive({
+df_flags <- reactive({
   dfs()[[2]]
 })
 df_prior <- reactive({
@@ -306,7 +306,7 @@ observeEvent(input$import, {
     switch(file_type(),
            "baro" = {IMPORT_BARO(df_baro = df(), baro_file = input$file, userlocation = userlocation)},
            "hobo" = {IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), hobo_txt_file = input$file, userlocation = userlocation)},
-           "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), df_flags = df_flags(), mayfly_file = input$file, userlocation = userlocation)}
+           "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), mayfly_file = input$file, userlocation = userlocation)}
     ),
     error = function(e) e)
   
@@ -320,7 +320,7 @@ observeEvent(input$import, {
     print(paste0("Successful import of ", nrow(df()), " records in '", input$file, "' to Database at ", Sys.time()))
     ImportStatus(paste0("Successful import of ", nrow(df()), " records from file: '", input$file, "' to Database at ", Sys.time()))
   }
-  return(ImportFailed)
+  return(ImportStatus)
   
 })
 # Add text everytime successful import
@@ -399,11 +399,7 @@ output$table_flag_preview <- renderDataTable({
 ### Trib Monitoring Table from Database
 output$trib_monitoring <- renderDataTable({
   req(try(df_trib_monitoring))
-  trib_monitoring <- df_trib_monitoring %>% 
-    select(-"Edit_timestamp") %>% 
-    dplyr::arrange(desc(FieldObsDate))
-  
-  datatable(trib_monitoring, filter = "top", options = list(pageLength = 25))
+  datatable(df_trib_monitoring, filter = "top", options = list(pageLength = 25))
 })
 
 } # end server function
