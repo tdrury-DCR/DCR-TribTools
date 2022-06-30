@@ -177,19 +177,24 @@ MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target
   time_start <- min(df_mayfly_corrected$DateTimeUTC)
   time_end <- max(df_mayfly_corrected$DateTimeUTC)
   
-  dg2 <- left_join(df_mayfly_corrected[ , c("DateTimeUTC", "RawStage_ft", "Stage_ft")], df_hobo, by ="DateTimeUTC") %>%
+  dg2 <- left_join(df_mayfly_corrected[ , c("DateTimeUTC", "Logger_temp_c", "RawStage_ft", "Stage_ft")], df_hobo, by = "DateTimeUTC") %>%
     full_join(df_fp[ , c("DateTimeUTC", "FinalResult")]) %>% distinct()
   
-  names(dg2) <- c("DateTimeUTC", "Raw_Mayfly","Corrected_Mayfly", "HOBO", "Manual")
+  names(dg2) <- c("DateTimeUTC", "Mayfly_temp_C", "Raw_Mayfly","Corrected_Mayfly", "HOBO", "Manual")
+  
+  ### Reorder colums so corrected result on top
+  dg2 <- dg2[,c(1,2,3,5,4,6)]
   
   ### Join in the flag data so estimated values can be a different series
   p  <- xts(dg2, order.by = dg2$DateTimeUTC, tzone = "UTC")
   # x_label <- strftime(p$DateTimeUTC,format = "%B-%m \n%Y")
   
   plot <- dygraph(p[,-1], main = glue("Mayfly Stage Correction at {loc}")) %>%
-    dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "green", "orange" ,"red")) %>%
+    dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "purple", "green", "orange" ,"red")) %>%
     dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
-    dyAxis(name = "y", label = "Stage (ft)", valueRange = c(0, max(dg2$Corrected_Mayfly, na.rm = TRUE) + 0.2)) %>%
+    dyAxis(name = "y", label = "Stage (ft)", valueRange = c(0, max(dg2$Corrected_Mayfly, na.rm = TRUE) + 0.2), independentTicks = TRUE) %>%
+    dyAxis(name = "y2", label = "Water Temperature (C)", valueRange = c(min(0, min(dg2$Mayfly_temp_C, na.rm = TRUE)), max(dg2$Mayfly_temp_C, na.rm = TRUE) +5), independentTicks = TRUE) %>%
+    dySeries("Mayfly_temp_C", axis=('y2')) %>% 
     dyRangeSelector(dateWindow = c(time_start - hours(1), time_end + hours(1)), strokeColor = '') %>%
     dyCrosshair(direction = "vertical")
   # plot2
@@ -310,32 +315,55 @@ IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
   # - 1. Delete records and re-import (would require brining in all columns)
   # - 2. Run Update query for Stage_ft and Discharge_cfs and only update those records
   
-  # Option 1 - Delete/Append
+  # Option 1 - Delete/Append - NOT BEST PRACTICES, DO NOT USE
   
   # odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{mayfly_tbl}")), value = df_mayfly, append = TRUE)
   
   
-  # Option 2 - Updates
+  # Option 2 - Updates ### THIS IS REALLY SLOW, deprecated in favor of join table update
   
-  update_ids <- df_mayfly$ID
-  stages <- df_mayfly$Stage_ft
-  discharges <- df_mayfly$Discharge_cfs
+  # update_ids <- df_mayfly$ID
+  # stages <- df_mayfly$Stage_ft
+  # discharges <- df_mayfly$Discharge_cfs
+  # 
+  # qry_part1 <- glue("UPDATE [{schema}].[{mayfly_tbl}] SET [Stage_ft] = {stages}, [Discharge_cfs] = {discharges}")
+  # # qry_part1
+  # qry_part2 <-  glue(" WHERE [ID] = {update_ids}")
+  # # qry_part2
+  # # Add index on Location and include in update statement 
+  # # Make temp table and join 
+  # 
+  # qry_update <- str_c(qry_part1, qry_part2)
+  # # qry_update
+  # # Step 3 - Run the update query - will run each updated record individually
+  # 
+  # for(i in qry_update){
+  #   # print(i)
+  #   odbc::dbGetQuery(con, i)
+  # }
   
-  qry_part1 <- glue("UPDATE [{schema}].[{mayfly_tbl}] SET [Stage_ft] = {stages}, [Discharge_cfs] = {discharges}")
-  # qry_part1
-  qry_part2 <-  glue(" WHERE [ID] = {update_ids}")
-  # qry_part2
-  # Add index on Location and include in update statement 
-  # Make temp table and join 
   
-  qry_update <- str_c(qry_part1, qry_part2)
-  # qry_update
-  # Step 3 - Run the update query - will run each updated record individually
+  # Option #3
+  # Create temp table with data to be updated - ID, Stage_ft, Discharge_cfs cols
+### EXAMPLE ####
+  # UPDATE A
+  # SET A.field1 = temp.field1
+  # From permanentTableName A
+  # Join temptablename temp on A.field2 = temp.field2 and A.field3 = temp.field3
+  # 
+  # Where field1 is the value you want to update and field2 and field3 are just what maps the two tables together. 
+  # If you only need one or need more fields to map them just use whatever you need. 
+  # And this will only update records that match in the join, so it won’t update any records in your permanent table unless they join to records in the temp table
   
-  for(i in qry_update){
-    # print(i)
-    odbc::dbGetQuery(con, i)
-  }
+  df_temp <- df_mayfly %>% select(c("ID", "Stage_ft", "Discharge_cfs"))
+  odbc::dbWriteTable(con, DBI::SQL("#tempMayfly"), value = df_temp, append = FALSE)
+  # returnTemp <- dbReadTable(con, Id(schema = schema, table = '#tempMayfly'))
+  # Join 
+  qry_join <- glue("UPDATE A SET A.[Stage_ft] = temp.[Stage_ft], 
+                   A.[Discharge_cfs] = temp.[Discharge_cfs] FROM [{schema}].[{mayfly_tbl}] A
+                    JOIN [#tempMayfly] temp ON A.ID = temp.ID")
+
+  odbc::dbGetQuery(con, qry_join)
   
   # Flag data
   if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
@@ -351,7 +379,7 @@ IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
   
   SendEmail(df = df_mayfly, 
             table = mayfly_tbl, 
-            file = "N/A", 
+            file = "No file...Corrected Stage and Discharge added to table.", 
             emaillist = emaillist, 
             username = username, 
             userlocation = userlocation)

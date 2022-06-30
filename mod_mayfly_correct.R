@@ -210,8 +210,8 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
                      fluidRow(
                        br(),
                        column(width = 6,
-                              sliderInput(inputId = ns("main_mult"), label = "Main multiplier variable:" , min = 0.01 , max = 0.30, value = 0.10 , step = 0.02),
-                              sliderInput(inputId = ns("power"), label = "Power variable:" , min = 0.03 , max = 1, value = 0.3 , step = 0.02),
+                              sliderInput(inputId = ns("main_mult"), label = "Main multiplier variable:" , min = 0.01 , max = 0.5, value = 0.10 , step = 0.01),
+                              sliderInput(inputId = ns("power"), label = "Power variable:" , min = 0.03 , max = 1, value = 0.3 , step = 0.01),
                               sliderInput(inputId = ns("tune_mult"), label = "Fine tune multiplier variable:" , min = -2 , max = 2.0, value = 1 , step = 0.05)
                        ),
                        column(width = 6,
