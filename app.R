@@ -20,15 +20,23 @@ ipak <- function(pkg){
 ### NOTE - Shiny must be installed and loaded in the LaunchAppGitHub.R script - any other packages requred should be listed below
 
 packages <- c("DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT", "naniar", "shinyWidgets", "magrittr", "xts", "shinyTime",
-              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue", "RDCOMClient", "dygraphs")
+              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue", "RDCOMClient", "dygraphs", "logging")
 ipak(packages) 
 
 substrRight <<- function(x, n){
   substr(x, nchar(x) - n + 1, nchar(x))
-  }
+}
+
+# basicConfig()
+
+# options(shiny.error = function() {
+#   logging::logerror(sys.calls() %>% as.character %>% paste(collapse = ", ")) })
   
+# options(shiny.error = browser)
+# options(shiny.error = recover)
+
 ### Set environment timezone
-Sys.setenv(TZ='UTC')
+# Sys.setenv(TZ='UTC')
 ### Set Location Dependent Variables - datatsets and distro
 
 if (userlocation == "Wachusett") {
@@ -48,7 +56,7 @@ userlocation <<- paste0(userdata[6])
 if (userlocation == "Wachusett") { ### WACHUSETT ####
   schema <- "Wachusett"
   # ### Connect to the DWSP database in SQL Server
-  # 
+  #
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
@@ -66,26 +74,27 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
     collect() %>%
     dplyr::arrange(desc(FieldObsDate))
 
-  db_hobo <- tbl(con, Id(schema = schema, table = "tbl_HOBO")) %>%
-    collect()
-  db_mayfly <- tbl(con, Id(schema = schema, table =  "tblMayfly")) %>%
-    collect()
+  db_hobo <- tbl(con, Id(schema = schema, table = "tbl_HOBO"))
+  db_hobo <- db_hobo %>% collect()
 
-db_fp <- tbl(con, Id(schema = schema, table = "tblTribFieldParameters"))
-df_fp <- db_fp %>%
-  filter(Parameter %in% c("Staff Gauge Height", "Specific Conductance")) %>%
-  select(3:7) %>%
-  collect()
+  db_mayfly <- tbl(con, Id(schema = schema, table =  "tblMayfly"))
+  db_mayfly <- db_mayfly %>% collect()
+
+  db_fp <- tbl(con, Id(schema = schema, table = "tblTribFieldParameters"))
+  df_fp <- db_fp %>%
+    filter(Parameter %in% c("Staff Gauge Height", "Specific Conductance")) %>%
+    select(3:7) %>%
+    collect()
 
   dbDisconnect(con)
   rm(con)
 
-# First force the tz attribute to reflect the timezone that the data appears in
-df_fp$DateTimeET <- force_tz(df_fp$DateTimeET, tz = "America/New_York")
-# Then convert time tz and the format into UTC
-df_fp$DateTimeET <- with_tz(df_fp$DateTimeET, tz = "UTC")
-df_fp <- df_fp %>%
-  dplyr::rename(DateTimeUTC = DateTimeET)
+  # First force the tz attribute to reflect the timezone that the data appears in
+  df_fp$DateTimeET <- force_tz(df_fp$DateTimeET, tz = "America/New_York")
+  # Then convert time tz and the format into UTC
+  df_fp$DateTimeET <- with_tz(df_fp$DateTimeET, tz = "UTC")
+  df_fp <- df_fp %>%
+    dplyr::rename(DateTimeUTC = DateTimeET)
   
   ### HOBO TOOL Function Args
   hobo_path <<- paste0(rootdir, config[["HOBO_Imported"]])
@@ -132,11 +141,13 @@ df_fp <- df_fp %>%
                        actionButton("refresh", "REFRESH"),
                        br(),
                        MF_CORRECT_UI("mod_mayfly_correct"))
-             )
-    ) ### END UI ####
+    )
+  ) ### END UI ####
   
   ### SERVER  ####
   server <- function(input, output, session) {
+    ### Setup parameters
+    options(scipen = 999)
     callModule(RATINGS, "mod_ratings", df_discharges = df_discharges, df_ratings = df_ratings)
     callModule(HOBO, "mod_hobos", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, df_trib_monitoring = df_trib_monitoring,
                baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, mayfly_data_dir = mayfly_data_dir,
@@ -237,4 +248,3 @@ df_fp <- df_fp %>%
 
 # combines the user interface and server
 shinyApp(ui = ui, server = server)
-

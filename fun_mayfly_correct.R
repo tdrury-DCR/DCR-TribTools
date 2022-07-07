@@ -31,7 +31,7 @@ data_correct_summary <- function(parameter) {
       collect()
   } else {
     df <- db_mayfly %>% 
-      filter(is.na("Conductivity_uScm")) %>%
+      filter(is.na(Conductivity_uScm)) %>%
       group_by(Location) %>%
       summarize("MinDateTimeUTC" = min(DateTimeUTC),
                 "MaxDateTimeUTC" = max(DateTimeUTC)) %>% 
@@ -53,7 +53,7 @@ data_correct_summary <- function(parameter) {
 ###                          PREVIEW PLOT                          ####
 ########################################################################.
 
-preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_mon) {
+preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_monitoring) {
   
   ###  FILTER DATA  ####
   
@@ -64,17 +64,16 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
   min_dt <- as.POSIXct(sum_loc$MinDateTimeUTC, tz = "UTC")
   max_dt<- as.POSIXct(sum_loc$MaxDateTimeUTC, tz = "UTC")  
   
-  short_loc <- substrRight(loc, 4)  
   
   df_hobo <- df_hobo %>% 
     filter(between(DateTimeUTC, min_dt, max_dt))
   
   df_mayfly <- df_mayfly %>% 
-    filter(Location == short_loc, between(DateTimeUTC, min_dt, max_dt)) %>% 
+    filter(Location == loc, between(DateTimeUTC, min_dt, max_dt)) %>% 
     select(all_of(mayfly_cols))
   
   df_fp <- df_fp %>% 
-    filter(Location == short_loc,
+    filter(Location == loc,
            Parameter == ifelse(par == "Stage_ft", "Staff Gauge Height", "Specific Conductance"),
            between(DateTimeUTC, min_dt - hours(3), max_dt + hours(3)))
   
@@ -92,16 +91,13 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
   ########################################################################.
   ###           INITIAL EXPLORATORY PLOT FOR STAGE CORRECTION         ####
   ########################################################################.
-  # dygraph showing full range of Raw and Corrected data compared to HOBO
+  # dygraph showing full range of Raw and Corrected data 
   
   max_dt_UTC <- max(df_mayfly$DateTimeUTC, na.rm = TRUE)
-  
-  y_label <- ifelse(par == "Stage_ft", "Stage (ft)", "Conductivity (\u03BCS/cm)")
-  
-  # print(names(df_mayfly))
-  # print(names(df_hobo))
-  # print(names(df_fp))
-  
+
+  if(par == "Stage_ft") {
+    y_label <- "Stage (ft)"
+    
   dg <- left_join(df_mayfly[ , c("DateTimeUTC", "RawStage_ft")], df_hobo[ , c("DateTimeUTC", "Stage_ft")]) %>%
     full_join(df_fp[ , c("DateTimeUTC", "FinalResult")]) %>% 
     distinct()
@@ -118,6 +114,33 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     dyAxis(name = "y", label = y_label, valueRange = c(0, ceiling(max(dg$HOBO, dg$Manual, dg$Raw_Mayfly, na.rm = TRUE)))) %>%
     dyRangeSelector(dateWindow = c(max_dt_UTC - months(1), max_dt_UTC + hours(5)), strokeColor = '') %>%
     dyCrosshair(direction = "vertical")
+  } else {
+    y_label <- "Specific Conductance (\u03BCS/cm)"
+    dg <- full_join(df_mayfly[ , c("DateTimeUTC", "RawConductivity_uScm")], df_fp[ , c("DateTimeUTC", "FinalResult")]) %>% 
+      distinct()
+    
+    names(dg) <- c("DateTimeUTC", "Raw_Conductivity", "YSI_Conductivity")
+    
+    ### Get the cleaning dates
+    cleanings <- df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
+    
+    cleanings <- cleanings %>% 
+      dplyr::filter(substrRight(Location, 4) == loc) %>% 
+      select(c(3,10,28)) %>% 
+      mutate(DateTimeUTC = as_datetime(glue("{FieldObsDate} {Mayfly_DownloadTimeUTC}")))
+
+    ### Join in the flag data so estimated values can be a different series
+    p  <- xts(dg, order.by = dg$DateTimeUTC, tzone = "UTC")
+    # x_label <- strftime(p$DateTimeUTC,format = "%B-%m \n%Y")
+    
+    plot <- dygraph(p[,-1], main = glue("Mayfly {par} (raw) at {loc}")) %>%
+      dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "green", "orange" ,"red")) %>%
+      dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
+      dyAxis(name = "y", label = y_label, valueRange = c(0, 50 + ceiling(max(dg$YSI_Conductivity, dg$Raw_Conductivity, na.rm = TRUE)))) %>%
+      dyEvent(c(cleanings$DateTimeUTC, rep("cleaning",length(cleanings$DateTimeUTC))), labelLoc = "bottom", color = "purple") %>% 
+      dyRangeSelector(dateWindow = c(max_dt_UTC - months(1), max_dt_UTC + hours(5)), strokeColor = '') %>%
+      dyCrosshair(direction = "vertical")
+  }
   
   return(plot)
 }
@@ -226,7 +249,7 @@ MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target
 # username <- username
 # userlocation <- userlocation
 
-PROCESS_CORRECTED_MAYFLY <- function(df_mayfly, df_corrected, username, userlocation) {
+PROCESS_CORRECTED_STAGE <- function(df_mayfly, df_corrected, username, userlocation) {
   
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
@@ -292,6 +315,131 @@ return(dfs)
 # dfs2 <- PROCESS_CORRECTED_MAYFLY(df_mayfly, df_corrected, username, userlocation)
 
 ########################################################################.
+###                 SPECIFIC CONDUCTANCE CORRECTION                 ####
+########################################################################.
+
+MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, end, meter_pre, meter_post, final_offset) {
+  # Notes: 
+  # Drift arg allows for a manual overide of the correction
+  ### Get loc
+  loc <- df$Location[1]  
+  
+  ### Inputs to formula
+  
+  # Monitor reading before sensor is cleaned
+  sensor_1 <- start
+  
+  # Monitor reading after sensor is cleaned
+  sensor_2 <-  end
+  
+  ## Fouling correction formula
+  f_corr <- ((sensor_2 - sensor_1) - (meter_post - meter_pre)) / sensor_1
+  
+  ## Correction
+  
+  ## Add correction to data
+  f_corr <- seq((f_corr/nrow(df)),f_corr, by=(f_corr/nrow(df)))
+  
+  df_mayfly_corrected <- df %>% 
+    mutate(Conductivity_uScm = RawConductivity_uScm + f_corr*RawConductivity_uScm + final_offset)
+  
+  time_start <- min(df_mayfly_corrected$DateTimeUTC)
+  time_end <- max(df_mayfly_corrected$DateTimeUTC)
+  
+  if(nrow(df_fp_model) > 0) {
+    dg2 <- full_join(df_mayfly_corrected[ , c("DateTimeUTC", "RawConductivity_uScm", "Conductivity_uScm")], df_fp_model[ , c("DateTimeUTC", "FinalResult")]) %>% distinct()
+    names(dg2) <- c("DateTimeUTC", "Raw_Conductivity", "Corrected_Conductivity", "YSI_Conductivity")
+    aes_colors <- c("blue", "green","red")
+    } else {
+    dg2 <- df_mayfly_corrected[ , c("DateTimeUTC", "RawConductivity_uScm")]
+    names(dg2) <- c("DateTimeUTC", "Raw_Conductivity", "Corrected_Conductivity")
+    aes_colors <- c("blue", "green")
+  }
+  
+  p  <- xts(dg2, order.by = dg2$DateTimeUTC, tzone = "UTC")
+  # x_label <- strftime(p$DateTimeUTC,format = "%B-%m \n%Y")
+  
+  ### Get the cleaning dates
+  cleanings <- df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
+  
+  cleanings <- cleanings %>% 
+    dplyr::filter(substrRight(Location, 4) == loc) %>% 
+    select(c(3,28)) %>% 
+    mutate(DateTimeUTC = as_datetime(paste(FieldObsDate, Mayfly_DownloadTimeUTC, sep = " "))) %>% 
+    arrange(DateTimeUTC)
+
+  plot <- dygraph(p[,-1], main = glue("Mayfly Corrected Specific Conductance at {loc}")) %>%
+    dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = aes_colors) %>%
+    dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
+    dyAxis(name = "y", label = "Conductivity (\u03BCS/cm)", valueRange = c(0, ceiling(max(dg2$YSI_Conductivity, dg2$Raw_Conductivity, dg2$Corrected_Conductivity, na.rm = TRUE)))) %>%
+    dyEvent(c(cleanings$DateTimeUTC, rep("cleaning",nrow(cleanings))), labelLoc = "bottom") %>% 
+    dyRangeSelector(dateWindow = c(time_end - months(1), time_end + hours(5)), strokeColor = '') %>%
+    dyCrosshair(direction = "vertical")
+  
+  plot
+  # plot2
+  dfs <- list(
+    "df" = df_mayfly_corrected,
+    "plot_corrected" = plot
+  )
+  return(dfs)
+}
+
+### Manual Testing - DOES NOT PLOT
+
+# MF_COND_CORRECT <- function(df, df_fp, df_trib_monitoring, drift, start, end, meter_pre, meter_post, final_offset) {
+loc <-  "MD01"
+model_start_time <- as_datetime("2021-12-15 19:30:00")
+model_end_time <-   as_datetime("2022-01-06 20:20:00")
+df <- db_mayfly %>%
+  select(c(2,3,8)) %>%
+  filter(Location == loc,
+         between(DateTimeUTC, model_start_time, model_end_time))
+
+df_fp_model <- df_fp %>%
+  filter(Location == loc,
+         Parameter == "Specific Conductance",
+         between(DateTimeUTC, model_start_time, model_end_time))
+
+drift <- 0
+start <- 234.3
+end <-  228.7
+meter_pre <- 0
+meter_post <- 0
+final_offset <- 0
+
+# 
+# MF_COND_CORRECT(df = df, df_fp = df_fp_model , df_trib_monitoring = df_trib_monitoring,
+#                   drift = drift, start = start, end = end, meter_pre = meter_pre, meter_post = meter_post, final_offset = final_offset)
+
+PROCESS_CORRECTED_COND <- function(df_mayfly, df_corrected, username, userlocation) {
+  
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
+  tz <- 'UTC'
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  
+  loc <- df_mayfly$Location[1]
+  schema <- userlocation
+  ### Calcualte all discharges and save df
+  
+  df <- df_corrected %>% 
+    left_join(df_mayfly[, c(1,3)])
+
+  dfs <- list(
+    "df" = df,
+    "df_flag" = NA)
+  
+  # Disconnect from db and remove connection obj
+  dbDisconnect(con)
+  rm(con)
+  
+  print(paste0("Mayfly Data finished processing at ", Sys.time()))
+  
+  return(dfs)
+}
+
+########################################################################.
 ###                       IMPORT CORRECTED DATA                     ####
 ########################################################################.
 
@@ -303,7 +451,6 @@ return(dfs)
 IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
   print(paste0("Mayfly Data started importing at ", Sys.time()))
 
-  
   mayfly_tbl <- "tblMayfly"
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
@@ -355,34 +502,60 @@ IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
   # If you only need one or need more fields to map them just use whatever you need. 
   # And this will only update records that match in the join, so it won’t update any records in your permanent table unless they join to records in the temp table
   
-  df_temp <- df_mayfly %>% select(c("ID", "Stage_ft", "Discharge_cfs"))
-  odbc::dbWriteTable(con, DBI::SQL("#tempMayfly"), value = df_temp, append = FALSE)
-  # returnTemp <- dbReadTable(con, Id(schema = schema, table = '#tempMayfly'))
-  # Join 
-  qry_join <- glue("UPDATE A SET A.[Stage_ft] = temp.[Stage_ft], 
+  if("Stage_ft" %in% names(df_mayfly)) {
+    
+    df_temp <- df_mayfly %>% select(c("ID", "Stage_ft", "Discharge_cfs"))
+    odbc::dbWriteTable(con, DBI::SQL("#tempMayfly"), value = df_temp, append = FALSE)
+    # returnTemp <- dbReadTable(con, Id(schema = schema, table = '#tempMayfly'))
+    # Join 
+    qry_join <- glue("UPDATE A SET A.[Stage_ft] = temp.[Stage_ft], 
                    A.[Discharge_cfs] = temp.[Discharge_cfs] FROM [{schema}].[{mayfly_tbl}] A
                     JOIN [#tempMayfly] temp ON A.ID = temp.ID")
-
-  odbc::dbGetQuery(con, qry_join)
-  
-  # Flag data
-  if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
-    print("Importing flags...")
-    odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
+    
+    odbc::dbGetQuery(con, qry_join)
+    
+    # Flag data
+    if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
+      print("Importing flags...")
+      odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
+    } else {
+      print("No flags to import")
+    }
+    
+    # Disconnect from db and remove connection obj
+    dbDisconnect(con)
+    rm(con)
+    
+    SendEmail(df = df_mayfly, 
+              table = mayfly_tbl, 
+              file = "No file...Corrected Stage and Discharge data added to the table.", 
+              emaillist = emaillist, 
+              username = username, 
+              userlocation = userlocation)
+    
   } else {
-    print("No flags to import")
+    
+    df_temp <- df_mayfly %>% select(c("ID", "Conductivity_uScm"))
+    odbc::dbWriteTable(con, DBI::SQL("#tempMayfly"), value = df_temp, append = FALSE)
+    # returnTemp <- dbReadTable(con, Id(schema = schema, table = '#tempMayfly'))
+    # Join 
+    qry_join <- glue("UPDATE A SET A.[Conductivity_uScm] = temp.[Conductivity_uScm] FROM [{schema}].[{mayfly_tbl}] A
+                    JOIN [#tempMayfly] temp ON A.ID = temp.ID")
+    
+    odbc::dbGetQuery(con, qry_join)
+    
+    # Disconnect from db and remove connection obj
+    dbDisconnect(con)
+    rm(con)
+    
+    SendEmail(df = df_mayfly, 
+              table = mayfly_tbl, 
+              file = "No file...Corrected Conductivity data added to the table.", 
+              emaillist = emaillist, 
+              username = username, 
+              userlocation = userlocation)
+    
   }
-  
-  # Disconnect from db and remove connection obj
-  dbDisconnect(con)
-  rm(con)
-  
-  SendEmail(df = df_mayfly, 
-            table = mayfly_tbl, 
-            file = "No file...Corrected Stage and Discharge added to table.", 
-            emaillist = emaillist, 
-            username = username, 
-            userlocation = userlocation)
   
   print(paste0("Mayfly Data finished importing at ", Sys.time()))
   return("Import Successful")
