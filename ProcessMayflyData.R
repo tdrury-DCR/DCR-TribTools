@@ -201,16 +201,16 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
     pull(Location)
   
   ### cols is used as the ordering of data in the plot legend. If you change the order, you have to change the code for each parameter below
-  cols <- c("RawStage (ft)" = "darkgreen", #cols[1]
-            "Stage (ft) - prior" = "darkseagreen4", #cols[2]
+  cols <- c("Raw Stage (ft)" = "darkgreen", #cols[1]
+            "Raw Stage (ft) - prior" = "darkseagreen4", #cols[2]
             "Stage (ft) - manual" = "darkorange2", #cols[3]
             "Water Temperature (C)" = "purple4", #cols[4]
             "Water Temperature (C) - prior" = "orchid4", #cols[5]
             "Water Temperature (C) - manual" = "magenta", #cols[6]
             # "Discharge (cfs)" = "blue4",  #cols[7]
             # "Discharge (cfs) - prior" = "steelblue", #cols[8]
-            "RawConductivity (uS/cm)" = "gray35", #cols[7]
-            "Conductivity (uS/cm) - prior" = "gray65", #cols[8]
+            "Raw Conductivity (uS/cm)" = "gray35", #cols[7]
+            "Raw Conductivity (uS/cm) - prior" = "gray65", #cols[8]
             "Conductivity (uS/cm) - manual" = "red1" #cols[9]
   )
  
@@ -254,11 +254,11 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   mult <- y1lim / abs(y2lim)
   
   plot  <- ggplot(pd, aes(x = DateTimeUTC)) +
-    geom_line(aes(y = RawStage_ft, color = "RawStage (ft)"), size = 1)  
+    geom_line(aes(y = RawStage_ft, color = "Raw Stage (ft)"), size = 1)  
   
   plot <- switch (var2,
         "Temperature" = plot + geom_line(aes(y = Logger_temp_c * mult, color = "Water Temperature (C)"), size = 1),
-        "Conductivity" = plot + geom_line(aes(y = RawConductivity_uScm * mult, color = "RawConductivity (uS/cm)"), size = 1)
+        "Conductivity" = plot + geom_line(aes(y = RawConductivity_uScm * mult, color = "Raw Conductivity (uS/cm)"), size = 1)
         # "Discharge" = plot + geom_line(aes(y = Discharge_cfs * mult, color = "Discharge (cfs)"), size = 1)
     )
   
@@ -273,9 +273,9 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   linetype_legend <- append(linetype_legend,
                             switch(var2,
                                    "Temperature" = c("Water Temperature (C)" = "solid", 
-                                                     "RawStage (ft)" = "solid"),
-                                   "Conductivity" = c("RawConductivity (uS/cm)" = "solid", 
-                                                      "RawStage (ft)" = "solid")))
+                                                     "Raw Stage (ft)" = "solid"),
+                                   "Conductivity" = c("Raw Conductivity (uS/cm)" = "solid", 
+                                                      "Raw Stage (ft)" = "solid")))
                                    # "Discharge" = c("Discharge (cfs)" = "solid", 
                                    #                 "Stage (ft)" = "solid")))
   
@@ -283,16 +283,16 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
   shape_legend <- append(shape_legend,
                             switch(var2,
                                    "Temperature" = c("Water Temperature (C)" = NA, 
-                                                     "RawStage (ft)" = NA),
-                                   "Conductivity" = c("RawConductivity (uS/cm)" = NA, 
-                                                      "RawStage (ft)" = NA)))
+                                                     "Raw Stage (ft)" = NA),
+                                   "Conductivity" = c("Raw Conductivity (uS/cm)" = NA, 
+                                                      "Raw Stage (ft)" = NA)))
                                    # "Discharge" = c("Discharge (cfs)" = NA, 
                                    #                 "Stage (ft)" = NA)))
 
   # Check for prior data to plot 
   if(isTRUE(prior)){
     plot <- plot +  
-      geom_line(data = df_prior, aes(x = DateTimeUTC, y = Stage_ft, color = "Stage (ft) - prior"), size = 1) +
+      geom_line(data = df_prior, aes(x = DateTimeUTC, y = RawStage_ft, color = " Raw Stage (ft) - prior"), size = 1) +
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
 
   plot <- switch (var2,
@@ -304,7 +304,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
       "Conductivity" = plot + geom_line(data = df_prior, 
                                         aes(x = DateTimeUTC, 
                                             y = Conductivity_uScm * mult, 
-                                            color = "Conductivity (uS/cm) - prior"), 
+                                            color = "Raw Conductivity (uS/cm) - prior"), 
                                         size = 1))
       # "Discharge" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
   
