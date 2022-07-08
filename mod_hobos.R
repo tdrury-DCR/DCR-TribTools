@@ -142,13 +142,13 @@ output$file.UI <- renderUI({
 
 ### 
 # Update Select Input when a file is imported (actually when the import button is pressed (successful or not))
-  observeEvent(input$import, {
-    updateSelectInput(session = session,
-                      inputId = ns("file"),
-                      label = "1. Choose file to upload:",
-                      choices = rxvals$files,
-                      selected = "")
-  }) 
+  # observeEvent(input$import, {
+  #   updateSelectInput(session = session,
+  #                     inputId = ns("file"),
+  #                     label = "1. Choose file to upload:",
+  #                     choices = rxvals$files,
+  #                     selected = "")
+  # }) 
 ### Well File ####  
 well_file <-   reactive({
   req(input$file)
@@ -319,8 +319,8 @@ observeEvent(input$import, {
     print(paste0("Successful import of ", nrow(df()), " records in '", input$file, "' to Database at ", Sys.time()))
     ImportStatus(paste0("Successful import of ", nrow(df()), " records from file: '", input$file, "' to Database at ", Sys.time()))
   }
-  return(ImportStatus)
   rxvals$files <- get_files(updir, mayfly_data_dir)
+  return(ImportStatus)
 })
 # Add text everytime successful import
 # observeEvent(input$import, {
