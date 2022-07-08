@@ -157,7 +157,7 @@ well_file <-   reactive({
    
 ### Stage UI ####
 output$stage.UI <- renderUI({
- req(file_type() %in% c("hobo","mayfly"))
+ req(file_type() %in% c("hobo"))
  numericInput(inputId = ns("stage"),
               label = "Provide stage (ft) at time of download:", value = 0, min = 0, max = 30, step = 0.01, width = "100%")
               
@@ -205,7 +205,7 @@ dfs <- eventReactive(input$process,{
   switch(file_type(),
          "baro" = {PROCESS_BARO(baro_file = input$file, userlocation = userlocation)},
          "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username, userlocation = userlocation)},
-         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username, userlocation = userlocation)}
+         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, username = username, userlocation = userlocation)}
   )
 })
 

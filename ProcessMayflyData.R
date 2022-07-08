@@ -12,7 +12,7 @@
 # username <- "Dan Crocker"
 # stage <- 1.48 ### Enter stage at time of data download (Numeric entry in Shiny App)
 # #   
-PROCESS_MAYFLY <- function(mayfly_file, stage, username, userlocation){
+PROCESS_MAYFLY <- function(mayfly_file, username, userlocation){
   
 print(paste0("Mayfly data started processing at ", Sys.time()))
   
