@@ -8,9 +8,9 @@
 ##############################################################################.
 
 get_files <- function(updir, mayfly_data_dir) {
-  mayfly_files <- list.files(mayfly_data_dir, recursive = F, full.names = T, include.dirs = TRUE, pattern = "^[^~$]+.csv$")
-  hobo_txt_files  <- list.files(updir, recursive = F, full.names = F, include.dirs = TRUE, pattern = "^[^~$]+.txt$")
-  barometer_files <- list.files(updir, recursive = F, full.names = F, include.dirs = TRUE, pattern = "^[^~$]+(_BARO_).*\\.txt$")
+  mayfly_files <- list.files(mayfly_data_dir, recursive = F, full.names = F, include.dirs = F, pattern = "^[^~$]+.csv$")
+  hobo_txt_files  <- list.files(updir, recursive = F, full.names = F, include.dirs = F, pattern = "^[^~$]+.txt$")
+  barometer_files <- list.files(updir, recursive = F, full.names = F, include.dirs = F, pattern = "^[^~$]+(_BARO_).*\\.txt$")
   all_files <- c(hobo_txt_files, mayfly_files)
   
   if(length(barometer_files) > 0){
