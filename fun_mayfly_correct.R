@@ -137,7 +137,7 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
       dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "green", "orange" ,"red")) %>%
       dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
       dyAxis(name = "y", label = y_label, valueRange = c(0, 50 + ceiling(max(dg$YSI_Conductivity, dg$Raw_Conductivity, na.rm = TRUE)))) %>%
-      dyEvent(c(cleanings$DateTimeUTC, rep("cleaning",length(cleanings$DateTimeUTC))), labelLoc = "bottom", color = "purple") %>% 
+      dyEvent(c(cleanings$DateTimeUTC, rep("cleaning",nrow(cleanings))), labelLoc = "bottom", color = "purple") %>% 
       dyRangeSelector(dateWindow = c(max_dt_UTC - months(1), max_dt_UTC + hours(5)), strokeColor = '') %>%
       dyCrosshair(direction = "vertical")
   }
@@ -376,8 +376,6 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
     dyRangeSelector(dateWindow = c(time_end - months(1), time_end + hours(5)), strokeColor = '') %>%
     dyCrosshair(direction = "vertical")
   
-  plot
-  # plot2
   dfs <- list(
     "df" = df_mayfly_corrected,
     "plot_corrected" = plot
@@ -388,25 +386,25 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
 ### Manual Testing - DOES NOT PLOT
 
 # MF_COND_CORRECT <- function(df, df_fp, df_trib_monitoring, drift, start, end, meter_pre, meter_post, final_offset) {
-loc <-  "MD01"
-model_start_time <- as_datetime("2021-12-15 19:30:00")
-model_end_time <-   as_datetime("2022-01-06 20:20:00")
-df <- db_mayfly %>%
-  select(c(2,3,8)) %>%
-  filter(Location == loc,
-         between(DateTimeUTC, model_start_time, model_end_time))
-
-df_fp_model <- df_fp %>%
-  filter(Location == loc,
-         Parameter == "Specific Conductance",
-         between(DateTimeUTC, model_start_time, model_end_time))
-
-drift <- 0
-start <- 234.3
-end <-  228.7
-meter_pre <- 0
-meter_post <- 0
-final_offset <- 0
+# loc <-  "MD01"
+# model_start_time <- as_datetime("2021-12-15 19:30:00")
+# model_end_time <-   as_datetime("2022-01-06 20:20:00")
+# df <- db_mayfly %>%
+#   select(c(2,3,8)) %>%
+#   filter(Location == loc,
+#          between(DateTimeUTC, model_start_time, model_end_time))
+# 
+# df_fp_model <- df_fp %>%
+#   filter(Location == loc,
+#          Parameter == "Specific Conductance",
+#          between(DateTimeUTC, model_start_time, model_end_time))
+# 
+# drift <- 0
+# start <- 234.3
+# end <-  228.7
+# meter_pre <- 0
+# meter_post <- 0
+# final_offset <- 0
 
 # 
 # MF_COND_CORRECT(df = df, df_fp = df_fp_model , df_trib_monitoring = df_trib_monitoring,
