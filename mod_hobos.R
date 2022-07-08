@@ -78,6 +78,8 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, df_trib_moni
   
   ImportStatus <- reactiveVal("")
   
+  rxvals <- reactiveValues()
+  
 ### INTRO TEXT #### 
   output$intro <- renderText({paste0("The HOBO/MAYFLY DATA TOOL is designed to facilitate the processing and importing of HOBO and MAYFLY Logger Data.\n 
                                        All raw text files exported from HOBO Ware should be checked over, corrections made with annotations prior to using this tool. \n
@@ -89,23 +91,9 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, df_trib_moni
 
 # filter files to show only barometric files until there are none, and then show the other files     
 # Make the File List
-files <- reactive({
   
-  mayfly_files <- list.files(mayfly_data_dir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.csv$")
-  hobo_txt_files  <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.txt$")
-  barometer_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+(_BARO_).*\\.txt$")
-  all_files <- c(hobo_txt_files, mayfly_files)
+rxvals$files <- get_files(updir, mayfly_data_dir)
   
-    if(length(barometer_files) > 0){
-      files <- barometer_files
-    } else {
-      show('stage')
-      files <- all_files 
-    }
-
-files <- files
-})
-
 var2 <- reactive({
   input$var2
 })
@@ -127,18 +115,27 @@ x <- input$file
 
 ### Check to see if there are any BARO files to be processed
 baro_files <- reactive({
-  if(any(str_detect(files(), pattern = "(_BARO_).*\\.txt$"))){
+  req(rxvals$files)
+  if(any(str_detect(rxvals$files, pattern = "(_BARO_).*\\.txt$"))){
     TRUE
   } else {
     FALSE
   }
 })
 
+
+observe({
+  if(isFALSE(baro_files())) {
+    show('stage')
+  }
+})
+
 ### Files UI ####  
 output$file.UI <- renderUI({
+  req(rxvals$files)
   selectInput(inputId = ns("file"),
               label = "1. Choose file to upload:",
-              choices = files(),
+              choices = rxvals$files,
               selected = 1)
 })
 
@@ -149,11 +146,12 @@ output$file.UI <- renderUI({
     updateSelectInput(session = session,
                       inputId = ns("file"),
                       label = "1. Choose file to upload:",
-                      choices = files(),
+                      choices = rxvals$files,
                       selected = "")
   }) 
 ### Well File ####  
 well_file <-   reactive({
+  req(input$file)
   length(grep(input$file, pattern = "(SYW177_).*\\.txt$")) 
 })
    
@@ -166,6 +164,7 @@ output$stage.UI <- renderUI({
 })
   
 var2_choices <- reactive({
+  req(file_type())
   if (file_type() == "hobo") {
     c("Discharge", "Temperature")
   } else if (file_type() == "mayfly") {
@@ -321,7 +320,7 @@ observeEvent(input$import, {
     ImportStatus(paste0("Successful import of ", nrow(df()), " records from file: '", input$file, "' to Database at ", Sys.time()))
   }
   return(ImportStatus)
-  
+  rxvals$files <- get_files(updir, mayfly_data_dir)
 })
 # Add text everytime successful import
 # observeEvent(input$import, {

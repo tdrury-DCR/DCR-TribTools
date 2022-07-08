@@ -110,6 +110,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   emaillist <<- config[["Email_List"]]
   
   ### Source Modules and functions
+  source("fun_mod_hobos.R")
   source("mod_ratings.R")
   source("Ratings.R")
   source("mod_hobos.R")
