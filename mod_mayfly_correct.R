@@ -52,6 +52,9 @@ MF_CORRECT_UI <- function(id) {
                    tabPanel("MAYFLY DATA PREVIEW",  ### DATA PREVEIW PAGE ####
                             dataTableOutput(ns("original_data_preview"))
                    ),
+                   tabPanel("TRIBUTARY MONITORING NOTES",
+                            dataTableOutput(ns("trib_monitoring_notes"))
+                   ),
                    tabPanel("DISCRETE DATA PREVIEW", ### FLAG DATA PREVIEW PAGE ####
                             dataTableOutput(ns("manual_data_preview"))
                    ),
@@ -312,6 +315,7 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
           column(6, # Correction Plot
                  em("Data Correction Plot"),
                  uiOutput(ns("data_correction_plot.UI")),
+                 # box(textOutput(ns("legendDivID")), title = "Legend", collapsible = TRUE, width = 5),
                  br(),
                  em("Inspect the corrected output data and once the correction is acceptable, click the 'Import' button to add the final stage and discharge records to the database table."),
                  strong(h4("5. PROCESS CORRECTED DATA:")),
@@ -449,6 +453,11 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
     datatable(df_model()) 
   })
   
+  output$trib_monitoring_notes <- renderDataTable({
+    req(df_trib_monitoring)
+    datatable(df_trib_monitoring) 
+  })
+  
   output$manual_data_preview <- renderDataTable({
     req(df_fp_model())
     datatable(df_fp_model()) 
@@ -583,7 +592,7 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
   #### PLOT2 OUTPUT ####
   output$output_plot2 <- renderDygraph({
     req(corrected_output())
-    corrected_output()[[2]]
+    corrected_output()[[2]] 
   })  
   
 ### PROCESS / IMPORT CORRECTED DATA ####

@@ -111,9 +111,10 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
   plot <- dygraph(p[,-1], main = glue("Mayfly {par} (raw) at {loc}")) %>%
     dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "green", "orange" ,"red")) %>%
     dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
-    dyAxis(name = "y", label = y_label, valueRange = c(0, ceiling(max(dg$HOBO, dg$Manual, dg$Raw_Mayfly, na.rm = TRUE)))) %>%
+    dyAxis(name = "y", label = y_label, valueRange = c(0, 1.2 * ceiling(max(dg$HOBO, dg$Manual, dg$Raw_Mayfly, na.rm = TRUE)))) %>%
     dyRangeSelector(dateWindow = c(max_dt_UTC - months(1), max_dt_UTC + hours(5)), strokeColor = '') %>%
-    dyCrosshair(direction = "vertical")
+    dyCrosshair(direction = "vertical") %>% 
+    dyLegend(width = "100%", hideOnMouseOut = FALSE)
   } else {
     y_label <- "Specific Conductance (\u03BCS/cm)"
     dg <- full_join(df_mayfly[ , c("DateTimeUTC", "RawConductivity_uScm")], df_fp[ , c("DateTimeUTC", "FinalResult")]) %>% 
@@ -136,10 +137,11 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     plot <- dygraph(p[,-1], main = glue("Mayfly {par} (raw) at {loc}")) %>%
       dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "green", "orange" ,"red")) %>%
       dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
-      dyAxis(name = "y", label = y_label, valueRange = c(0, 50 + ceiling(max(dg$YSI_Conductivity, dg$Raw_Conductivity, na.rm = TRUE)))) %>%
+      dyAxis(name = "y", label = y_label, valueRange = c(0, 1.2 * ceiling(max(dg$YSI_Conductivity, dg$Raw_Conductivity, na.rm = TRUE)))) %>%
       dyEvent(c(cleanings$DateTimeUTC, rep("cleaning",nrow(cleanings))), labelLoc = "bottom", color = "purple") %>% 
       dyRangeSelector(dateWindow = c(max_dt_UTC - months(1), max_dt_UTC + hours(5)), strokeColor = '') %>%
-      dyCrosshair(direction = "vertical")
+      dyCrosshair(direction = "vertical") %>% 
+      dyLegend(width = "100%", hideOnMouseOut = FALSE)
   }
   
   return(plot)
@@ -215,11 +217,12 @@ MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target
   plot <- dygraph(p[,-1], main = glue("Mayfly Stage Correction at {loc}")) %>%
     dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "purple", "green", "orange" ,"red")) %>%
     dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
-    dyAxis(name = "y", label = "Stage (ft)", valueRange = c(0, max(dg2$Corrected_Mayfly, na.rm = TRUE) + 0.2), independentTicks = TRUE) %>%
+    dyAxis(name = "y", label = "Stage (ft)", valueRange = c(0, 1.2 * max(dg2$Corrected_Mayfly, na.rm = TRUE)), independentTicks = TRUE) %>%
     dyAxis(name = "y2", label = "Water Temperature (C)", valueRange = c(min(0, min(dg2$Mayfly_temp_C, na.rm = TRUE)), max(dg2$Mayfly_temp_C, na.rm = TRUE) +5), independentTicks = TRUE) %>%
     dySeries("Mayfly_temp_C", axis=('y2')) %>% 
     dyRangeSelector(dateWindow = c(time_start - hours(1), time_end + hours(1)), strokeColor = '') %>%
-    dyCrosshair(direction = "vertical")
+    dyCrosshair(direction = "vertical") %>% 
+    dyLegend(width = "100%", hideOnMouseOut = FALSE)
   # plot2
   dfs <- list(
     "df" = df_mayfly_corrected,
@@ -326,11 +329,11 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   
   ### Inputs to formula
   
-  # Monitor reading before sensor is cleaned
-  sensor_1 <- start
+  # Monitor reading before sensor is cleaned  
+  sensor_1 <- start + final_offset #
   
   # Monitor reading after sensor is cleaned
-  sensor_2 <-  end
+  sensor_2 <-  end + final_offset # adding final offset here so drift increment is adjusted by final offset too
   
   ## Fouling correction formula
   f_corr <- ((sensor_2 - sensor_1) - (meter_post - meter_pre)) / sensor_1
@@ -341,7 +344,9 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   f_corr <- seq((f_corr/nrow(df)),f_corr, by=(f_corr/nrow(df)))
   
   df_mayfly_corrected <- df %>% 
-    mutate(Conductivity_uScm = RawConductivity_uScm + f_corr*RawConductivity_uScm + final_offset)
+    mutate(Conductivity_uScm = RawConductivity_uScm + f_corr * (RawConductivity_uScm + final_offset) %>% round(1))
+  
+  df_mayfly_corrected$Conductivity_uScm <- df_mayfly_corrected$Conductivity_uScm + final_offset
   
   time_start <- min(df_mayfly_corrected$DateTimeUTC)
   time_end <- max(df_mayfly_corrected$DateTimeUTC)
@@ -371,10 +376,11 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   plot <- dygraph(p[,-1], main = glue("Mayfly Corrected Specific Conductance at {loc}")) %>%
     dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = aes_colors) %>%
     dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
-    dyAxis(name = "y", label = "Conductivity (\u03BCS/cm)", valueRange = c(0, ceiling(max(dg2$YSI_Conductivity, dg2$Raw_Conductivity, dg2$Corrected_Conductivity, na.rm = TRUE)))) %>%
+    dyAxis(name = "y", label = "Conductivity (\u03BCS/cm)", valueRange = c(0, 1.2 * ceiling(max(dg2$YSI_Conductivity, dg2$Raw_Conductivity, dg2$Corrected_Conductivity, na.rm = TRUE)))) %>%
     dyEvent(c(cleanings$DateTimeUTC, rep("cleaning",nrow(cleanings))), labelLoc = "bottom") %>% 
     dyRangeSelector(dateWindow = c(time_end - months(1), time_end + hours(5)), strokeColor = '') %>%
-    dyCrosshair(direction = "vertical")
+    dyCrosshair(direction = "vertical") %>% 
+    dyLegend(width = "100%", hideOnMouseOut = FALSE)
   
   dfs <- list(
     "df" = df_mayfly_corrected,
@@ -548,7 +554,7 @@ IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
     
     SendEmail(df = df_mayfly, 
               table = mayfly_tbl, 
-              file = "No file...Corrected Conductivity data added to the table.", 
+              file = "No file...Corrected conductivity data added to the table.", 
               emaillist = emaillist, 
               username = username, 
               userlocation = userlocation)
