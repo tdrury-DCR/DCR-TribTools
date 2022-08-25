@@ -55,8 +55,8 @@ userlocation <<- paste0(userdata[6])
 
 if (userlocation == "Wachusett") { ### WACHUSETT ####
   schema <- "Wachusett"
-  # ### Connect to the DWSP database in SQL Server
-  #
+  ### Connect to the DWSP database in SQL Server
+
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'

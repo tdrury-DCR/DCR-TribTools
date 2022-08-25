@@ -13,6 +13,7 @@
 
 ### With Mayfly table group by Location summarize where is.null Stage_ft or is.null Conductivity
 ### Get min/max dates
+### Data corrections limited to 2022 and forward to avoid all the historicasl data from MD83 showing up
 
 data_correct_summary <- function(parameter) {
   dsn <- 'DCR_DWSP_App_R'
@@ -24,14 +25,14 @@ data_correct_summary <- function(parameter) {
   
   if(parameter == "Stage_ft") {
     df <- db_mayfly %>% 
-      filter(is.na(Stage_ft)) %>%
+      filter(is.na(Stage_ft), DateTimeUTC >= as_datetime("2022-01-01")) %>%
       group_by(Location) %>%
       summarize("MinDateTimeUTC" = min(DateTimeUTC),
                 "MaxDateTimeUTC" = max(DateTimeUTC)) %>% 
       collect()
   } else {
     df <- db_mayfly %>% 
-      filter(is.na(Conductivity_uScm)) %>%
+      filter(is.na(Conductivity_uScm), DateTimeUTC >= as_datetime("2022-01-01")) %>%
       group_by(Location) %>%
       summarize("MinDateTimeUTC" = min(DateTimeUTC),
                 "MaxDateTimeUTC" = max(DateTimeUTC)) %>% 
@@ -176,7 +177,7 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
 
 
 ########################################################################.
-###                          TEMP CORRECTION                         ####
+###                          STAGE TEMP CORRECTION                         ####
 ########################################################################.
 
 MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target, drift, final_offset) {
