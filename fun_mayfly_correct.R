@@ -187,7 +187,7 @@ MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target
     
   ### Apply temp correction
   df_mayfly_corrected <- df %>%
-    mutate(Stage_ft = RawStage_ft - ((30 - Logger_temp_c) * coeff_a)^pow * mult)
+    mutate(Stage_ft = RawStage_ft - ((35 - Logger_temp_c) * coeff_a)^pow * mult)
   
   offset <- df_mayfly_corrected$Stage_ft[nrow(df_mayfly_corrected)] - stage_target
   
