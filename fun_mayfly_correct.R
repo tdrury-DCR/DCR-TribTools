@@ -128,7 +128,8 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     
     cleanings <- cleanings %>% 
       dplyr::filter(substrRight(Location, 4) == loc) %>% 
-      mutate(DateTimeUTC = as_datetime(if(is.null(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC)))# %>%
+      rowwise() %>% 
+      mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC)))# %>%
       # select(c(3,10,28)) %>% 
       # arrange(DateTimeUTC)
 
@@ -371,7 +372,8 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   
   cleanings <- cleanings %>% 
     dplyr::filter(substrRight(Location, 4) == loc) %>% 
-    mutate(DateTimeUTC = as_datetime(if(is.null(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC)))# %>%
+    rowwise() %>% 
+    mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC)))# %>%
     # select(c(3,10,28)) %>% 
     # arrange(DateTimeUTC)
 
