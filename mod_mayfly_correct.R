@@ -377,7 +377,7 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
   cleanings <- reactive({
     req(loc_selected())
     mf_cleanings() %>%
-      dplyr::filter(substrRight(Location, 4) == loc) %>% 
+      dplyr::filter(substrRight(Location, 4) == loc_selected()) %>% 
       rowwise() %>% 
       mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC))) %>%
       arrange(DateTimeUTC)
