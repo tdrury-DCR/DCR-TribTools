@@ -128,8 +128,9 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     
     cleanings <- cleanings %>% 
       dplyr::filter(substrRight(Location, 4) == loc) %>% 
+      mutate(DateTimeUTC = as_datetime(if(is.null(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC))) %>%
       select(c(3,10,28)) %>% 
-      mutate(DateTimeUTC = as_datetime(glue("{FieldObsDate} {Mayfly_DownloadTimeUTC}")))
+      arrange(DateTimeUTC)
 
     ### Join in the flag data so estimated values can be a different series
     p  <- xts(dg, order.by = dg$DateTimeUTC, tzone = "UTC")
@@ -370,8 +371,8 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   
   cleanings <- cleanings %>% 
     dplyr::filter(substrRight(Location, 4) == loc) %>% 
-    select(c(3,28)) %>% 
-    mutate(DateTimeUTC = as_datetime(paste(FieldObsDate, Mayfly_DownloadTimeUTC, sep = " "))) %>% 
+    mutate(DateTimeUTC = as_datetime(if(is.null(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC))) %>%
+    select(c(3,10,28)) %>% 
     arrange(DateTimeUTC)
 
   plot <- dygraph(p[,-1], main = glue("Mayfly Corrected Specific Conductance at {loc}")) %>%
