@@ -153,8 +153,8 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
 ### Manual Testing - DOES NOT PLOT
 # loc <-  "MD01"
 # par <-  "Stage_ft"
-# model_start_time <- as_datetime("2021-11-05 18:30:00")
-# model_end_time <-   as_datetime("2021-11-15 18:45:00")
+# model_start_time <- as_datetime("2022-11-01 15:30:00")
+# model_end_time <-   as_datetime("2022-11-15 18:45:00")
 # 
 # df_hobo = db_hobo %>%
 #   filter(Location == loc) %>%
@@ -169,17 +169,17 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
 # pow <- 1.12
 # stage_target <- 1.8
 # final_offset <-  0
-# df_fp <- df_fp %>% 
+# df_fp <- df_fp %>%
 #   filter(Location == loc,
 #          Parameter == "Staff Gauge Height",
 #          between(DateTimeUTC, model_start_time, model_end_time))
-         
-# sum_loc <- data_correct_summary(df = db_mayfly, parameter = par) %>% filter(Location == substrRight(loc,4))
+# 
+# sum_loc <- data_correct_summary(parameter = par) %>% filter(Location == substrRight(loc,4))
 # preview_plot(loc = loc, par = par, sum_loc, df_mayfly = db_mayfly, df_hobo = db_hobo, df_fp, df_trib_mon = df_trib_monitoring)
 
 
 ########################################################################.
-###                          STAGE TEMP CORRECTION                         ####
+###                          STAGE TEMP CORRECTION                  ####
 ########################################################################.
 
 MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target, drift, final_offset) {

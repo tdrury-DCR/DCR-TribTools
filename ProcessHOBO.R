@@ -145,7 +145,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   baro <-  baro[col_order]
   
   ### Check for duplicate data in the database
-  baro_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+  baro_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{baro_tbl}] WHERE 
                                   [Location] = '{loc}'"))
 
   duplicates <- semi_join(baro, baro_existing, by="DateTimeUTC")
