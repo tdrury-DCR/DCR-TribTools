@@ -303,7 +303,7 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
                                        size = 1),
       "Conductivity" = plot + geom_line(data = df_prior, 
                                         aes(x = DateTimeUTC, 
-                                            y = Conductivity_uScm * mult, 
+                                            y = RawConductivity_uScm * mult, 
                                             color = "Raw Conductivity (uS/cm) - prior"), 
                                         size = 1))
       # "Discharge" = plot + geom_line(data = df_prior, aes(x = DateTimeUTC, y = Discharge_cfs * mult, color = "Discharge (cfs) - prior"), size = 1) 
