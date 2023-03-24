@@ -228,7 +228,7 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
                      ),
                      column(width = 6,
                             numericInput(inputId = ns("set_stage_target"), label = "Set Stage Target (ft):", value = 0, min = 0, max = 10, step = 0.01),
-                            sliderInput(inputId = ns("drift"), label = "Drift Correction (ft):" , min = -0.3 , max = 0.3, value = 0 , step = 0.01),
+                            uiOutput(ns("drift.UI")),
                             numericInput(inputId = ns("final_offset"), label = "Final Stage Offset (ft):", value = 0, min = 0, max = 0.5, step = 0.01),
                             actionButton(inputId = ns("make_correction_plot"),
                                          label = paste0('Generate plot with data correction'),
@@ -407,7 +407,7 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
       manual_stage_times()[manual_stage_times() > input$start_time_select]
     } else { # Conductivity end time should be just prior to a cleaning
       req(cleanings(), model_start_time())
-      cleanings()$DateTimeUTC[cleanings()$DateTimeUTC > input$start_time_select]
+      c(cleanings()$DateTimeUTC[cleanings()$DateTimeUTC > input$start_time_select], max_dt())
     }
   })
   
@@ -523,18 +523,25 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
                 selected = end_time_choices()[1])
   })  
   
+  
+  
+
   ### CORRECTION PLOT ####
   output$data_correction_plot.UI <- renderUI({
     req(corrected_output())
     dygraphOutput(ns("output_plot2"), width = "100%", height = "500px") %>% withSpinner()
   })
+  
   # Get Mayfly conductivity values just prior to and after cleaning
   pre_clean_spcd <- reactive({
     req(par() == "Conductivity_uScm")
     req(model_end_time())
     ### Get the last raw conductivity before the model-end-time
     db_mayfly %>% 
-      filter(Location == loc_selected(), DateTimeUTC < model_end_time()) %>% 
+      arrange(DateTimeUTC) %>% 
+      filter(Location == loc_selected(), 
+             is.na(Conductivity_uScm),
+             DateTimeUTC <= model_end_time()) %>% 
       slice(n()) %>% 
       pull(RawConductivity_uScm)
   })
@@ -543,27 +550,43 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
     req(par() == "Conductivity_uScm")
     req(model_end_time())
     ### Get the first raw conductivity after the model-end-time
-    db_mayfly %>% 
-      filter(Location == loc_selected(), DateTimeUTC > model_end_time()) %>% 
-      slice(1) %>% 
-      pull(RawConductivity_uScm)
+    d <- db_mayfly %>% 
+      arrange(DateTimeUTC) %>% 
+      filter(Location == loc_selected(), 
+             is.na(Conductivity_uScm),
+             DateTimeUTC > model_end_time())
+    
+    if(nrow(d) == 0) {
+      d <- db_mayfly %>% 
+        arrange(DateTimeUTC) %>% 
+        filter(Location == loc_selected(), 
+               is.na(Conductivity_uScm),
+               DateTimeUTC == model_end_time()) %>% 
+        slice(1) %>% 
+        pull(RawConductivity_uScm)
+    }
+    d
   })
-
-  sensor_drift <- reactive({
-    req(par() == "Conductivity_uScm")
-    req(pre_clean_spcd(), post_clean_spcd())
-    post_clean_spcd() - pre_clean_spcd() # Post should usually be higher than Pre
-  })
+  
+  # sensor_drift <- reactive({
+  #   req(par() == "Conductivity_uScm")
+  #   req(pre_clean_spcd(), post_clean_spcd())
+  #   post_clean_spcd() - pre_clean_spcd() # Post should usually be higher than Pre
+  # })
 
   output$drift.UI <- renderUI({
-    req(par() == "Conductivity_uScm")
-    sliderInput(inputId = ns("drift"), label = "Fouling (Drift) Correction (\u03BCS/cm):",
-                min = 0 , max = max(10, round(sensor_drift()*2),na.rm = TRUE), value = sensor_drift(), step = 1)
+    if(par() == "Stage_ft") {
+      sliderInput(inputId = ns("drift"), label = "Drift Correction (ft):", 
+                  min = -0.3 , max = 0.3, value = 0 , step = 0.01)
+    } else {
+      sliderInput(inputId = ns("drift"), label = "Manual Fouling (Drift) Correction (\u03BCS/cm):",
+                  min = 0 , max = 200, value = 0, step = 1)
+    }
   })
   
   corrected_output <- eventReactive(input$make_correction_plot, {
     if(par() == "Stage_ft") {
-      out <- MF_TEMP_CORRECT(df = df_model(), 
+      out <- MF_STAGE_CORRECT(df = df_model(), 
                              df_hobo = db_hobo %>% 
                                filter(Location == loc_selected()) %>% 
                                select(3,6),

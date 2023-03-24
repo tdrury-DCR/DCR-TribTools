@@ -49,6 +49,7 @@ data_correct_summary <- function(parameter) {
   return(summary)
 }
 # parameter <- "Stage_ft"
+# parameter <- "Conductivity_uScm"
 # data_correct_summary(parameter)
 ########################################################################.
 ###                          PREVIEW PLOT                          ####
@@ -65,7 +66,6 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
   min_dt <- as.POSIXct(sum_loc$MinDateTimeUTC, tz = "UTC")
   max_dt<- as.POSIXct(sum_loc$MaxDateTimeUTC, tz = "UTC")  
   
-  
   df_hobo <- df_hobo %>% 
     filter(between(DateTimeUTC, min_dt, max_dt))
   
@@ -73,12 +73,12 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     filter(Location == loc, between(DateTimeUTC, min_dt, max_dt)) %>% 
     select(all_of(mayfly_cols))
   
-  df_fp <- df_fp %>% 
+  df_fp2 <- df_fp %>% 
     filter(Location == loc,
            Parameter == ifelse(par == "Stage_ft", "Staff Gauge Height", "Specific Conductance"),
            between(DateTimeUTC, min_dt - hours(3), max_dt + hours(3)))
   
-  manual_stage_times <- df_fp %>% 
+  manual_stage_times <- df_fp2 %>% 
     use_series(DateTimeUTC)
   
   # manual_stage_times
@@ -100,7 +100,7 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     y_label <- "Stage (ft)"
     
   dg <- left_join(df_mayfly[ , c("DateTimeUTC", "RawStage_ft")], df_hobo[ , c("DateTimeUTC", "Stage_ft")]) %>%
-    full_join(df_fp[ , c("DateTimeUTC", "FinalResult")]) %>% 
+    full_join(df_fp2[ , c("DateTimeUTC", "FinalResult")]) %>% 
     distinct()
   
   names(dg) <- c("DateTimeUTC", "Raw_Mayfly", "HOBO", "Manual")
@@ -118,7 +118,7 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     dyLegend(width = "100%", hideOnMouseOut = FALSE)
   } else {
     y_label <- "Specific Conductance (\u03BCS/cm)"
-    dg <- full_join(df_mayfly[ , c("DateTimeUTC", "RawConductivity_uScm")], df_fp[ , c("DateTimeUTC", "FinalResult")]) %>% 
+    dg <- full_join(df_mayfly[ , c("DateTimeUTC", "RawConductivity_uScm")], df_fp2[ , c("DateTimeUTC", "FinalResult")]) %>% 
       distinct()
     
     names(dg) <- c("DateTimeUTC", "Raw_Conductivity", "YSI_Conductivity")
@@ -138,7 +138,7 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
     # x_label <- strftime(p$DateTimeUTC,format = "%B-%m \n%Y")
     
     plot <- dygraph(p[,-1], main = glue("Mayfly {par} (raw) at {loc}")) %>%
-      dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "green", "orange" ,"red")) %>%
+      dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = c("blue", "red", "orange" ,"purple4")) %>%
       dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
       dyAxis(name = "y", label = y_label, valueRange = c(0, 1.2 * ceiling(max(dg$YSI_Conductivity, dg$Raw_Conductivity, na.rm = TRUE)))) %>%
       dyEvent(c(cleanings$DateTimeUTC, rep("cleaning",nrow(cleanings))), labelLoc = "bottom", color = "purple") %>% 
@@ -152,9 +152,16 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
 
 ### Manual Testing - DOES NOT PLOT
 # loc <-  "MD01"
-# par <-  "Stage_ft"
+# # par <-  "Stage_ft"
+# par <- "Conductivity_uScm"
+# 
+# if(par == "Stage_ft") {
+#   parameter <- "Staff Gauge Height"
+# } else {
+#   parameter <- "Specific Conductance"
+# }
 # model_start_time <- as_datetime("2022-11-01 15:30:00")
-# model_end_time <-   as_datetime("2022-11-15 18:45:00")
+# model_end_time <-   as_datetime("2023-01-10 14:45:00")
 # 
 # df_hobo = db_hobo %>%
 #   filter(Location == loc) %>%
@@ -164,25 +171,27 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
 #   select(c(2:6)) %>%
 #   filter(Location == loc,
 #          between(DateTimeUTC, model_start_time, model_end_time))
+# 
 # coeff_a <- 0.11
 # mult <- 0.33
 # pow <- 1.12
 # stage_target <- 1.8
 # final_offset <-  0
-# df_fp <- df_fp %>%
+# 
+# df_fp2 <- df_fp %>%
 #   filter(Location == loc,
-#          Parameter == "Staff Gauge Height",
+#          Parameter == parameter,
 #          between(DateTimeUTC, model_start_time, model_end_time))
 # 
 # sum_loc <- data_correct_summary(parameter = par) %>% filter(Location == substrRight(loc,4))
-# preview_plot(loc = loc, par = par, sum_loc, df_mayfly = db_mayfly, df_hobo = db_hobo, df_fp, df_trib_mon = df_trib_monitoring)
-
+# preview_plot(loc = loc, par = par, sum_loc, df_mayfly = db_mayfly, df_hobo = db_hobo, df_fp2, df_trib_monitoring = df_trib_monitoring)
+# 
 
 ########################################################################.
-###                          STAGE TEMP CORRECTION                  ####
+###                          STAGE CORRECTION                  ####
 ########################################################################.
 
-MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target, drift, final_offset) {
+MF_STAGE_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target, drift, final_offset) {
 
   ### Get loc
   loc <- df$Location[1]  
@@ -235,9 +244,9 @@ MF_TEMP_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target
 }
 
 ### Run temp correction function
-# dfs <- MF_TEMP_CORRECT(df = df, 
+# dfs <- MF_STAGE_CORRECT(df = df, 
 #                        df_hobo = df_hobo, 
-#                        df_fp = df_fp , 
+#                        df_fp = df_fp, 
 #                        coeff_a = coeff_a, 
 #                        pow = pow, 
 #                        mult = mult, 
@@ -331,23 +340,31 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   loc <- df$Location[1]  
   
   ### Inputs to formula
-  
+  if (is.null(end) || is.na(end) || end == "") {
+    end <- df %>% 
+      slice(n()) %>% 
+      pull(RawConductivity_uScm)
+  }
   # Monitor reading before sensor is cleaned  
   sensor_1 <- start + final_offset #
-  
+  print(paste0("sensor_1 (before cleaning: ", start))
   # Monitor reading after sensor is cleaned
   sensor_2 <-  end + final_offset # adding final offset here so drift increment is adjusted by final offset too
+  print(paste0("sensor_2 (after cleaning: ", end))
   
   ## Fouling correction formula
-  f_corr <- ((sensor_2 - sensor_1) - (meter_post - meter_pre)) / sensor_1
-  
+  f_corr <- if(drift > 0) {
+    drift - (meter_post - meter_pre)
+  } else {
+    ((sensor_2 - sensor_1) - (meter_post - meter_pre)) #/ sensor_1
+  }
   ## Correction
   
   ## Add correction to data
   f_corr <- seq((f_corr/nrow(df)),f_corr, by=(f_corr/nrow(df)))
   
   df_mayfly_corrected <- df %>% 
-    mutate(Conductivity_uScm = RawConductivity_uScm + f_corr * (RawConductivity_uScm + final_offset) %>% round(1))
+    mutate(Conductivity_uScm = RawConductivity_uScm + f_corr %>% round(1))
   
   df_mayfly_corrected$Conductivity_uScm <- df_mayfly_corrected$Conductivity_uScm + final_offset
   
