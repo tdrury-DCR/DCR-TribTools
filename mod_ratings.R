@@ -130,12 +130,12 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges){
   })
   
   output$discharges <- renderDataTable({
-    datatable(df_discharges) %>% 
+    datatable(df_discharges[, c(1:ncol(df_discharges)-1)]) %>% 
       formatDate(columns = c("DateTimeStartET","DateTimeEndET"), method = 'toLocaleString')
   })
     
   output$ratings <- renderDataTable({
-    datatable(df_ratings) %>%
+    datatable(df_ratings[, c(1:ncol(df_ratings)-1)]) %>%
       formatDate(columns = c("DateTimeStartET","DateTimeEndET"), method = 'toLocaleString')
   })
 
