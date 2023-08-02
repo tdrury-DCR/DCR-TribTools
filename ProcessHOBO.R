@@ -45,7 +45,7 @@
 # hobo_path <- config[["HOBO_Imported"]]
 # updir <- config[["HOBO_Staging"]] ### Set directory to where exported .hobo and .txt are staged
 # hobo_db <- db ### Same as rating info - all in Hydro DB
-# baro_tbl <- config[["HOBO_BARO"]]
+# baro_table <- config[["HOBO_BARO"]]
 # hobo_tbl <- config[["HOBO"]]
 # ImportFlagTable <- config[["HydroFlagIndex"]]
 
@@ -69,7 +69,7 @@
 
 ### Utility to find gaps in barometric data ####
 
-# dfb <- dbReadTable(con, baro_tbl)
+# dfb <- dbReadTable(con, baro_table)
 # dfb <- dfb[order(dfb$DateTimeUTC),]
 # dfb$diff <- dfb$DateTimeUTC - lag(dfb$DateTimeUTC, n = 1L)
 # 
@@ -125,7 +125,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   
   ### A function to fetch record IDs from the database table and assign record IDs to the new data
   setIDs <- function(){
-    qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{baro_tbl}]"))
+    qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{baro_table}]"))
     ### Get current max ID
     if(is.na(qry)) {
       qry <- 0
@@ -141,11 +141,11 @@ PROCESS_BARO <- function(baro_file, userlocation){
   baro$ID <- setIDs()
   
   ### Reorder columns to match db
-  col_order <- c(dbListFields(con, schema_name = schema, name = baro_tbl), "Logger_temp_f")
+  col_order <- c(dbListFields(con, schema_name = schema, name = baro_table), "Logger_temp_f")
   baro <-  baro[col_order]
   
   ### Check for duplicate data in the database
-  baro_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{baro_tbl}] WHERE 
+  baro_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{baro_table}] WHERE 
                                   [Location] = '{loc}'"))
 
   duplicates <- semi_join(baro, baro_existing, by="DateTimeUTC")
@@ -169,8 +169,10 @@ PROCESS_BARO <- function(baro_file, userlocation){
   
   ### Grab last 1 days records to plot with new data to check for missed data corrections
   t <- min(baro$DateTimeUTC)
-  baro_prior <- dbReadTable(con, Id(schema = schema, table = baro_tbl)) %>%
-    filter(Location %in% baro_grp, DateTimeUTC >= (t - 86400), DateTimeUTC < t)
+  baro_tbl <- tbl(con, Id(schema = schema, table = baro_table))
+  baro_prior <- baro_tbl %>% 
+    filter(Location %in% baro_grp, DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
+    collect()
   
   ### Convert C to F
   baro_prior$Logger_temp_f <- baro_prior$Logger_temp_c * 1.8 + 32 
@@ -313,7 +315,7 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
     tz <- 'UTC'
     con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
-  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{baro_tbl}")), value = df_baro, append = TRUE)
+  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{baro_table}")), value = df_baro, append = TRUE)
   ### Disconnect from db and remove connection obj
   dbDisconnect(con)
   rm(con)
@@ -330,7 +332,7 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
   file.rename(file, paste0(subdir, "/", baro_file))
   file.rename(hobo_file, paste0(subdir, "/", hobo_name))
   
-  SendEmail(df=df_baro, table=baro_tbl, file=baro_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  SendEmail(df=df_baro, table=baro_table, file=baro_file, emaillist=emaillist, username=username, userlocation=userlocation)
   
   return(paste0("Barometric HOBO Data finished importing at ", Sys.time()))
 } ### End function
@@ -396,7 +398,19 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   tz <- 'UTC'
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
-  df_baro <- dbReadTable(con, Id(schema = schema, table = baro_tbl))
+  baro_tbl <- tbl(con, Id(schema = schema, table = baro_table))
+  
+
+  ### Filter barometric records to the appropriate barometer and time period needed
+  df_baro <- baro_tbl %>%
+    filter(Location %in% baro,
+           DateTimeUTC >= df$DateTimeUTC) %>%
+    drop_na(Logger_psi) %>% 
+    collect()
+  
+  ### Fix time zone designation
+  # df_baro$DateTimeUTC <-  force_tz(df_baro$DateTimeUTC, tzone = "UTC")
+  # df_baro$DateTimeUTC <- with_tz(df_baro$DateTimeUTC, tzone = "America/New_York")
   
   ### Get existing data to check for duplicates
   if(loc == "SYW177"){
@@ -406,24 +420,13 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   hobo_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
                                   [Location] = '{loc}'"))
 
-  ### Disconnect from db and remove connection obj
-  dbDisconnect(con) #2
-  rm(con)
-  
+
   ### Check for duplicate existing data in database
   duplicates <- semi_join(df, hobo_existing, by="DateTimeUTC")
   
   if (nrow(duplicates) > 0){
     stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," HOBO records in the database."))
   }
-  
-  ### Filter barometric records to the appropriate barometer
-  df_baro <- df_baro %>%
-    filter(Location %in% baro) %>%
-    drop_na(Logger_psi)
-  ### Fix time zone designation
-  # df_baro$DateTimeUTC <-  force_tz(df_baro$DateTimeUTC, tzone = "UTC")
-  # df_baro$DateTimeUTC <- with_tz(df_baro$DateTimeUTC, tzone = "America/New_York")
   
   ### Join the barometric data for each record
   df2 <- left_join(df,df_baro[,3:4], by = "DateTimeUTC") %>%
@@ -466,15 +469,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     ### Calcualte all discharges and save df2 to a new df with discharge info
     df_HOBO <- HOBOcalcQ(schema = schema, loc = loc, df_HOBO = df2)
   }
-  
-  ### Connect to db #3  ## IMPORTANT - timezone set as UTC
-  ### CONNECT TO A FRONT-END DATABASE ####
-  ### Set DB
-  schema <- userlocation
-  dsn <- 'DCR_DWSP_App_R'
-  database <- "DCR_DWSP"
-  tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+
   ### Set record IDs
   setIDs <- function(){
     qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_tbl}]"))
@@ -534,12 +529,15 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   ### Grab last 1 days records to plot with new data to check for missed data corrections
   t <- min(df_HOBO$DateTimeUTC)
-  hobo_prior <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
-                                  [Location] = '{loc}'"))
-    
+  
+  hobo_tbl <- tbl(con, Id(schema = schema, table = hobo_tbl))
+
   # hobo_prior$DateTimeUTC <-  force_tz(hobo_prior$DateTimeUTC, tzone = "UTC") 
-  hobo_prior <- filter(hobo_prior, DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
-    arrange(DateTimeUTC)
+  hobo_prior <- hobo_tbl %>% 
+    filter(Location == loc,
+           DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
+    arrange(DateTimeUTC) %>% 
+    collect()
   
   if(nrow(hobo_prior) > 0){
     ### Convert C to F

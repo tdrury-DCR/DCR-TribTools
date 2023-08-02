@@ -40,12 +40,13 @@ names(df) <- c("DateTimeUTC", "RawConductivity_uScm", "RawStage_ft", "Logger_tem
 if(str_detect(df$DateTimeUTC[1], "/")) {
   print("Dates formatted with slashes")
   df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC") 
-  df$DateTimeUTC <- df$DateTimeUTC + lubridate::hours(5)
+  ### Location MDO2 Mayfly is set to UTC, so no tz offset required. 
+  df$DateTimeUTC <- ifelse(loc == "MD02", df$DateTimeUTC, df$DateTimeUTC + lubridate::hours(5))
 } else {
   if(str_detect(df$DateTimeUTC[1], "-")) {
     print("Dates formatted with dashes")
     df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
-    df$DateTimeUTC <- df$DateTimeUTC + lubridate::hours(5)
+    df$DateTimeUTC <- ifelse(loc -- "MD02", df$DateTimeUTC, df$DateTimeUTC + lubridate::hours(5))
   }
 }
   

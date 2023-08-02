@@ -55,9 +55,17 @@ data_correct_summary <- function(parameter) {
 ###                          PREVIEW PLOT                          ####
 ########################################################################.
 
-preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_monitoring) {
+preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
   
-  ###  FILTER DATA  ####
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
+  tz <- 'UTC'
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  
+  mayfly_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tblMayfly"))
+  hobo_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tbl_HOBO"))
+ 
+   ###  FILTER DATA  ####
   
   mayfly_cols <- switch(par,
                         "Stage_ft" = c(1:7), 
@@ -66,12 +74,16 @@ preview_plot <- function(loc, par, sum_loc, df_mayfly, df_hobo, df_fp, df_trib_m
   min_dt <- as.POSIXct(sum_loc$MinDateTimeUTC, tz = "UTC")
   max_dt<- as.POSIXct(sum_loc$MaxDateTimeUTC, tz = "UTC")  
   
-  df_hobo <- df_hobo %>% 
-    filter(between(DateTimeUTC, min_dt, max_dt))
+  df_hobo <- hobo_tbl %>% 
+    filter(between(DateTimeUTC, min_dt, max_dt),
+           Location == loc) %>% 
+    select(2,3,6,7) %>% 
+    collect()
   
-  df_mayfly <- df_mayfly %>% 
+  df_mayfly <- mayfly_tbl %>% 
     filter(Location == loc, between(DateTimeUTC, min_dt, max_dt)) %>% 
-    select(all_of(mayfly_cols))
+    select(all_of(mayfly_cols)) %>% 
+    collect()
   
   df_fp2 <- df_fp %>% 
     filter(Location == loc,

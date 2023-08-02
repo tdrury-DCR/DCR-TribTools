@@ -73,12 +73,12 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
     select(-"Edit_timestamp") %>%
     collect() %>%
     dplyr::arrange(desc(FieldObsDate))
-
-  db_hobo <- tbl(con, Id(schema = schema, table = "tbl_HOBO"))
-  db_hobo <- db_hobo %>% collect()
-
-  db_mayfly <- tbl(con, Id(schema = schema, table =  "tblMayfly"))
-  db_mayfly <- db_mayfly %>% collect()
+  
+  # db_hobo <- tbl(con, Id(schema = schema, table = "tbl_HOBO"))
+  # db_hobo <- db_hobo %>% collect()
+  # 
+  # db_mayfly <- tbl(con, Id(schema = schema, table =  "tblMayfly"))
+  # db_mayfly <- db_mayfly %>% collect()
 
   db_fp <- tbl(con, Id(schema = schema, table = "tblTribFieldParameters"))
   df_fp <- db_fp %>%
@@ -100,8 +100,8 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   hobo_path <<- paste0(rootdir, config[["HOBO_Imported"]])
   updir <<- paste0(rootdir, config[["HOBO_Staging"]])
   hobo_db <<- "DCR_DWSP"
-  baro_tbl <<- config[["HOBO_BARO"]]
-  hobo_tbl <<- config[["HOBO"]]
+  baro_table <<- config[["HOBO_BARO"]]
+  hobo_table <<- config[["HOBO"]]
   ImportFlagTable <<- config[["HydroFlagIndex"]]
   wave_db <<- config[["DB_Access"]]
   mayfly_data_dir <<- paste0(rootdir, config[["Mayfly_Staging"]])
@@ -151,9 +151,9 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
     options(scipen = 999)
     callModule(RATINGS, "mod_ratings", df_discharges = df_discharges, df_ratings = df_ratings)
     callModule(HOBO, "mod_hobos", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, df_trib_monitoring = df_trib_monitoring,
-               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, mayfly_data_dir = mayfly_data_dir,
+               baro_table = baro_table, hobo_table = hobo_table, mayfly_data_dir = mayfly_data_dir,
                mayfly_data_processed = mayfly_data_processed, ImportFlagTable = ImportFlagTable, username = username, userlocation = userlocation)
-    callModule(MF_CORRECT, "mod_mayfly_correct", db_hobo =  db_hobo, db_mayfly = db_mayfly, df_fp = df_fp, 
+    callModule(MF_CORRECT, "mod_mayfly_correct", df_fp = df_fp, 
                df_trib_monitoring = df_trib_monitoring, username, userlocation)
     # Stop app when browser session window closes
     session$onSessionEnded(function() {
@@ -191,8 +191,8 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   hobo_path <<- paste0(rootdir, config[["HOBO_Imported"]])
   updir <<- paste0(rootdir, config[["HOBO_Staging"]])
   hobo_db <<- database # Same as rating info - all in Hydro DB
-  baro_tbl <<- config[["HOBO_BARO"]]
-  hobo_tbl <<- config[["HOBO"]]
+  baro_table <<- config[["HOBO_BARO"]]
+  hobo_table <<- config[["HOBO"]]
   ImportFlagTable <<- config[["HydroFlagIndex"]]
   mayfly_data_dir <<- paste0(rootdir, config[["Mayfly_Staging"]])
   mayfly_data_processed <<- paste0(rootdir, config[["Mayfly_Imported"]])
@@ -233,7 +233,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   server <- function(input, output, session) {
     callModule(RATINGS, "mod_ratings_q", df_discharges = df_discharges, df_ratings = df_ratings)
     callModule(HOBO, "mod_hobos_q", hobo_path = hobo_path, updir = updir, hobo_db = hobo_db, 
-               baro_tbl = baro_tbl, hobo_tbl = hobo_tbl, ImportFlagTable = ImportFlagTable, username = username, userlocation = userlocation)
+               baro_table = baro_table, hobo_table = hobo_table, ImportFlagTable = ImportFlagTable, username = username, userlocation = userlocation)
     
     observeEvent(input$refresh, {
       session$reload()

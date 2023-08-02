@@ -66,7 +66,7 @@ HOBO_UI <- function(id) {
 ###         SERVER          ####
 ################################.
 
-HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, hobo_tbl, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username, userlocation){  # Same as rating info - all in Hydro DB
+HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_table, hobo_table, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username, userlocation){  # Same as rating info - all in Hydro DB
   
   ### Source the HOBO functions ####
   # source("ProcessHOBO.R", local = T) ### source Script ####

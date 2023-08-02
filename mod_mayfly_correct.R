@@ -73,7 +73,7 @@ MF_CORRECT_UI <- function(id) {
 ###         SERVER          ####
 ################################.
 
-MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_trib_monitoring, username, userlocation) {  # Same as rating info - all in Hydro DB
+MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, username, userlocation) {  # Same as rating info - all in Hydro DB
   
 ########################################################################.
 ###               STAGE AND CONDUCTIVITY COMPONENTS                ####
@@ -110,7 +110,16 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
     rxvals$summary
   })
   
-  short_locs <-  db_mayfly$Location %>% unique() %>% sort()  
+  dsn <- 'DCR_DWSP_App_R'
+  database <- "DCR_DWSP"
+  tz <- 'UTC'
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  
+  mayfly_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tblMayfly"))
+  hobo_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tbl_HOBO"))
+  
+  # short_locs is hard coded to avoid expensive database querying... need to add M110 once online
+  short_locs <-  c("MD01", "MD02", "MD03", "MD05", "MD06", "MD83")
   full_locs <- df_trib_monitoring$Location %>% unique() %>% sort() 
   loc_choices <- full_locs[match(short_locs, substrRight(full_locs, 4))]
   
@@ -138,7 +147,6 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
     substrRight(input$loc_select, 4)
   })
   
-
   observe({
     req(input$loc_select)
     if (input$loc_select %in% loc_choices) {
@@ -159,10 +167,6 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
     plot1 <- preview_plot(loc = loc_selected(), 
                  par = par(),
                  sum_loc = rxvals$summary %>% filter(Location == loc_selected()),
-                 df_mayfly = db_mayfly, 
-                 df_hobo = db_hobo %>% 
-                   filter(Location == loc_selected()) %>% 
-                   select(2,3,6,7),
                  df_fp = df_fp, 
                  df_trib_monitoring = df_trib_monitoring)
     plot1
@@ -489,17 +493,22 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
   })
   
   df_model <- reactive({
+    loc <- loc_selected()
+    met <- model_end_time()
+    mst <- model_start_time()
     req(df_fp_model())
     if(par() == "Stage_ft") { 
-      db_mayfly %>%
+      mayfly_tbl %>%
         select(c(2:6)) %>% 
-        filter(Location == loc_selected(),
-               between(DateTimeUTC, model_start_time(), model_end_time())) 
+        filter(Location == loc,
+               between(DateTimeUTC, mst, met)) %>% 
+        collect()
     } else {
-      db_mayfly %>%
+      mayfly_tbl %>%
         select(c(2,3,8)) %>% 
-        filter(Location == loc_selected(),
-               between(DateTimeUTC, model_start_time(), model_end_time())) 
+        filter(Location == loc,
+               between(DateTimeUTC, mst, met)) %>% 
+        collect()
     }
   })
   
@@ -524,8 +533,6 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
   })  
   
   
-  
-
   ### CORRECTION PLOT ####
   output$data_correction_plot.UI <- renderUI({
     req(corrected_output())
@@ -537,11 +544,16 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
     req(par() == "Conductivity_uScm")
     req(model_end_time())
     ### Get the last raw conductivity before the model-end-time
-    db_mayfly %>% 
+    loc <- loc_selected()
+    met <- model_end_time()
+    mf_temp <- mayfly_tbl %>% 
       arrange(DateTimeUTC) %>% 
-      filter(Location == loc_selected(), 
+      filter(Location == loc, 
              is.na(Conductivity_uScm),
-             DateTimeUTC <= model_end_time()) %>% 
+             DateTimeUTC <= met) %>% 
+      collect()
+    
+    mf_temp %>% 
       slice(n()) %>% 
       pull(RawConductivity_uScm)
   })
@@ -550,22 +562,32 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
     req(par() == "Conductivity_uScm")
     req(model_end_time())
     ### Get the first raw conductivity after the model-end-time
-    d <- db_mayfly %>% 
+    loc <- loc_selected()
+    met <- model_end_time()
+    d <- mayfly_tbl %>% 
       arrange(DateTimeUTC) %>% 
-      filter(Location == loc_selected(), 
+      filter(Location == loc, 
              is.na(Conductivity_uScm),
-             DateTimeUTC > model_end_time())
+             DateTimeUTC > met) %>% 
+      collect()
+    
+    d2 <- d %>% 
+      slice(1) %>% 
+      pull(RawConductivity_uScm)
     
     if(nrow(d) == 0) {
-      d <- db_mayfly %>% 
+      d <- mayfly_tbl %>% 
         arrange(DateTimeUTC) %>% 
-        filter(Location == loc_selected(), 
+        filter(Location == loc, 
                is.na(Conductivity_uScm),
-               DateTimeUTC == model_end_time()) %>% 
+               DateTimeUTC == met) %>% 
+        collect()
+      
+      d2 <- d %>%   
         slice(1) %>% 
         pull(RawConductivity_uScm)
     }
-    d
+    d2
   })
   
   # sensor_drift <- reactive({
@@ -585,18 +607,23 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
   })
   
   corrected_output <- eventReactive(input$make_correction_plot, {
+    loc <- loc_selected()
+    met <- model_end_time()
+    mst <- model_start_time()
     if(par() == "Stage_ft") {
       out <- MF_STAGE_CORRECT(df = df_model(), 
-                             df_hobo = db_hobo %>% 
-                               filter(Location == loc_selected()) %>% 
-                               select(3,6),
-                             df_fp =  df_fp_model(),
-                             coeff_a = input$main_mult, 
-                             mult = input$tune_mult, 
-                             pow = input$power, 
-                             stage_target = input$set_stage_target,
-                             drift = input$drift,
-                             final_offset = input$final_offset)
+                              df_hobo = hobo_tbl %>% 
+                                filter(Location == loc,
+                                       between(DateTimeUTC, mst, met)) %>% 
+                                select(3,6) %>% 
+                                collect(),
+                              df_fp =  df_fp_model(),
+                              coeff_a = input$main_mult, 
+                              mult = input$tune_mult, 
+                              pow = input$power, 
+                              stage_target = input$set_stage_target,
+                              drift = input$drift,
+                              final_offset = input$final_offset)
       
     } else {
       out <- MF_COND_CORRECT(df = df_model(),
@@ -630,17 +657,24 @@ MF_CORRECT <- function(input, output, session, db_hobo, db_mayfly, df_fp, df_tri
   ### RUN PROCESS FUNCTION ####
   # Run the function to process the data and return 2 dataframes and path as list
   dfs <- eventReactive(input$process,{
+    loc <- loc_selected()
+    met <- model_end_time()
+    mst <- model_start_time()
+    
     if(par() == "Stage_ft") {
-      PROCESS_CORRECTED_STAGE(df_mayfly = db_mayfly %>%
-                                filter(Location == loc_selected(),
-                                       between(DateTimeUTC, model_start_time(), model_end_time())), 
+
+      PROCESS_CORRECTED_STAGE(df_mayfly = mayfly_tbl %>%
+                                filter(Location == loc,
+                                       between(DateTimeUTC, mst, met)) %>%
+                              collect(), 
                               df_corrected = corrected_output()[[1]], 
                               username = username, 
                               userlocation = userlocation)
     } else {
-      PROCESS_CORRECTED_COND(df_mayfly = db_mayfly %>%
-                               filter(Location == loc_selected(),
-                                      between(DateTimeUTC, model_start_time(), model_end_time())), 
+      PROCESS_CORRECTED_COND(df_mayfly = mayfly_tbl %>%
+                               filter(Location == loc,
+                                      between(DateTimeUTC, mst, met)) %>% 
+                               collect(), 
                              df_corrected = corrected_output()[[1]], 
                              username = username, 
                              userlocation = userlocation)
