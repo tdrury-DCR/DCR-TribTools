@@ -169,10 +169,8 @@ PROCESS_BARO <- function(baro_file, userlocation){
   
   ### Grab last 1 days records to plot with new data to check for missed data corrections
   t <- min(baro$DateTimeUTC) %>% as_datetime()
-  baro_tbl <- tbl(con, Id(schema = schema, table = baro_table))
-  baro_prior <- baro_tbl %>% 
-    filter(Location %in% baro_grp, DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
-    collect()
+  baro_prior <- baro_existing %>% 
+    filter(Location %in% baro_grp, DateTimeUTC >= (t - 86400), DateTimeUTC < t)
   
   ### Convert C to F
   baro_prior$Logger_temp_f <- baro_prior$Logger_temp_c * 1.8 + 32 
