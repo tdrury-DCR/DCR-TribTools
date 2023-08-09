@@ -533,11 +533,10 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   hobo_tbl <- tbl(con, Id(schema = schema, table = hobo_table))
 
   # hobo_prior$DateTimeUTC <-  force_tz(hobo_prior$DateTimeUTC, tzone = "UTC") 
-  hobo_prior <- hobo_tbl %>% 
-    filter(Location == loc,
-           DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
-    arrange(DateTimeUTC) %>% 
-    collect()
+  hobo_prior <- hobo_existing %>% 
+    filter(DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
+    arrange(DateTimeUTC)
+
   
   if(nrow(hobo_prior) > 0){
     ### Convert C to F
