@@ -7,11 +7,11 @@
 #  R version 3.5.3 (2019-03-11)  x86_64
 ##############################################################################.
 
-# library(tidyverse)
-# library(odbc)
-# library(DBI)
-# library(stats)
-# library(nlstools)
+library(tidyverse)
+library(odbc)
+library(DBI)
+library(stats)
+library(nlstools)
 # 
 # #### Important Notes:
 # # Analysis sequence
@@ -28,23 +28,23 @@
 # #10. Record the 
 # 
 # 
-### Get data configs from Launch File ####
-# # 
-# ### Set db for connection ####
-### CONNECT TO A FRONT-END DATABASE ####
-  # ### Set DB
+## Get data configs from Launch File ####
+#
+### Set db for connection ####
+## CONNECT TO A FRONT-END DATABASE ####
+### Set DB
 #   database <- 'DCR_DWSP'
 #   schema <- 'Wachusett'
 #   tz <- 'America/New_York'
 #   ### Connect to Database
 #   con <- dbConnect(odbc::odbc(), database, timezone = tz)
-#   # 
+#   #
 # 
 # tbl_ratings <- dbReadTable(con, Id(schema = schema, table = 'tblRatings'))
 # tbl_discharges <- dbReadTable(con, Id(schema = schema, table = 'tblDischargeMeasurements'))
 # dbDisconnect(con)
 # rm(con)
-# 
+
 # tbl_ratings <- df_ratings
 # tbl_discharges <- df_discharges
   
@@ -52,15 +52,18 @@
 # locs <- unique(tbl_discharges$Location)
 # locs # Look at the locations
 # loc <- locs[9] # Pick a location
-# ratingNo <-  1.01
+# ratingNo <-  1.02
 # drop_meas <- NA
-# offset1 <- 0.84
-# break1 <- 0
-# offset2 <- 0
-# break2 <- 0
-# offset3 <- 0
-# new_rating <- 1.02
-#_________________________________________________________________________________________________________________________________
+# offset1 <- 0.34
+# offset2 <- 0.34
+# offset3 <- 0.34
+# break1 <- 0.75
+# break2 <- 0.88
+# loc <- "FHLN"
+# new_rating <- 1.03
+# axes = FALSE
+# tbl_discharges <- disch
+#_____________________________________________________________________________________________________________________________
 ### NEW RATING FROM MEASUREMENTS ####
 MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_meas = NA, break1 = NA, offset2 =  NA, break2 = NA, offset3 = NA, new_rating = NA){
   
@@ -313,7 +316,7 @@ findq <- function(stage, C, n, a) {
 }
 ### Get the rating bounds, parts, then create a sequence of stage values to calculate rating curve
 minstage <- offset1
-maxstage <- max(gaugings$stage) + 0.25
+maxstage <- round(max(gaugings$stage) + 0.25, digits = 1)
 
 stages <- seq(minstage, maxstage, by = 0.02)
 
@@ -403,7 +406,7 @@ xmin <- 0
 xmax <- ceiling(max(gaugings$discharge)+(0.1 * max(gaugings$discharge)))
 ymin <- minstage
 ymax <- maxstage
-stages <- seq(ymin,ymax,by = 0.02)
+stages <- seq(ymin, ymax, by = 0.02)
 title <- paste0("STAGE-DISCHARGE RATING CURVE FOR ", loc)
 cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
 
@@ -437,7 +440,7 @@ p <- p +
         legend.title = element_blank(),
         axis.title.y = element_text(vjust = 2, face = "bold"),
         axis.title.x = element_text(vjust = 2, face = "bold"),
-        plot.title = element_text(hjust = 0.5, face = "bold")) 
+        plot.title = element_text(hjust = 0.5, face = "bold")) +
   # annotate("text", x = 0.5 * xmax, y = ymax, label = paste0("Rating Equation: ", eq1), color ="blue")
   
   # Add rating equation(s) and break1 if exists
@@ -454,8 +457,8 @@ p <- p +
     }
          
 # p
-p_rating <- plotly::ggplotly(p, tooltip = c("text")) %>% 
-  layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
+p_rating <- plotly::ggplotly(p) #%>% 
+  # layout(legend = list(x = 0, y = -0.2, orientation = 'h'))
 # p_rating
 # print(r)
 dfs <- list(plot = p_rating,
@@ -465,7 +468,7 @@ return(dfs)
 }
 
 ### RUN THE FUNCTION ####
-# dfs <- MAKE_RATING(tbl_discharges, tbl_ratings, loc, offset1, drop_meas = drop_meas, break1 = NA, break2 = NA, offset2 = NA, offset3 = NA )
+# dfs <- MAKE_RATING(tbl_discharges = disch, tbl_ratings, axes = FALSE, loc, offset1, drop_meas = NA, break1, break2, offset2, offset3)
 
 #_________________________________________________________________________________________________________________________________
 ### Plot discharge measurements ####
@@ -607,7 +610,7 @@ new_rating <- ratingNo
 
   ### Get the rating bounds, parts, then create a sequence of stage values to calculate rating curve
 minstage <- rating$MinStage
-maxstage <- rating$MaxStage
+maxstage <- round(rating$MaxStage, digits = 1)
 parts <- rating$Parts
 stages <- seq(minstage, maxstage, by = 0.02)
 

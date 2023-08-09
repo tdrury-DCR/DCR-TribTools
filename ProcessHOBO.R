@@ -46,12 +46,12 @@
 # updir <- config[["HOBO_Staging"]] ### Set directory to where exported .hobo and .txt are staged
 # hobo_db <- db ### Same as rating info - all in Hydro DB
 # baro_table <- config[["HOBO_BARO"]]
-# hobo_tbl <- config[["HOBO"]]
+# hobo_table <- config[["HOBO"]]
 # ImportFlagTable <- config[["HydroFlagIndex"]]
-
-### NOTE: After processing, raw data (txt) and .hobo files will get moved to the appropriate location file
-
-# #Set user info
+# 
+# ### NOTE: After processing, raw data (txt) and .hobo files will get moved to the appropriate location file
+# 
+# # #Set user info
 # user <-  Sys.getenv("USERNAME")
 # userdata <- readxl::read_xlsx(path = config[["Users"]])
 # username <- paste(userdata$FirstName[userdata$Username %in% user],userdata$LastName[userdata$Username %in% user],sep = " ")
@@ -168,7 +168,7 @@ PROCESS_BARO <- function(baro_file, userlocation){
   
   
   ### Grab last 1 days records to plot with new data to check for missed data corrections
-  t <- min(baro$DateTimeUTC)
+  t <- min(baro$DateTimeUTC) %>% as_datetime()
   baro_tbl <- tbl(con, Id(schema = schema, table = baro_table))
   baro_prior <- baro_tbl %>% 
     filter(Location %in% baro_grp, DateTimeUTC >= (t - 86400), DateTimeUTC < t) %>% 
@@ -343,10 +343,10 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
 ### _____________________________________________________________________________________
 ###
 
-# ### List txt files for HOBO downloads to be processed
+# # ### List txt files for HOBO downloads to be processed
 # hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[1] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
 # username <- "Dan Crocker"
 # stage <- 1.28 ### Enter stage at time of data download (Numeric entry in Shiny App
 
@@ -400,13 +400,15 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   baro_tbl <- tbl(con, Id(schema = schema, table = baro_table))
   
-
+  min_baro_time <- min(df$DateTimeUTC,na.rm = TRUE)
   ### Filter barometric records to the appropriate barometer and time period needed
   df_baro <- baro_tbl %>%
     filter(Location %in% baro,
-           DateTimeUTC >= df$DateTimeUTC) %>%
-    drop_na(Logger_psi) %>% 
+           DateTimeUTC >= min_baro_time) %>%
     collect()
+  
+  df_baro <- df_baro %>% 
+    drop_na(Logger_psi)
   
   ### Fix time zone designation
   # df_baro$DateTimeUTC <-  force_tz(df_baro$DateTimeUTC, tzone = "UTC")
@@ -414,10 +416,10 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   ### Get existing data to check for duplicates
   if(loc == "SYW177"){
-    hobo_tbl <- "tbl_HOBO_WELLS"
+    hobo_table <- "tbl_HOBO_WELLS"
   }
   
-  hobo_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_tbl}] WHERE 
+  hobo_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{hobo_table}] WHERE 
                                   [Location] = '{loc}'"))
 
 
@@ -429,7 +431,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   }
   
   ### Join the barometric data for each record
-  df2 <- left_join(df,df_baro[,3:4], by = "DateTimeUTC") %>%
+  df2 <- left_join(df, df_baro[ ,3:4], by = "DateTimeUTC") %>%
     dplyr::rename("Logger_psi_baro" = Logger_psi.y,"Logger_psi" = Logger_psi.x)
   ### Find the last time-stamp
   end_time <- max(df2$DateTimeUTC)
@@ -464,7 +466,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
       mutate("RatingFlag" = NA,
              "Discharge_cfs" = NA,
              "Water_Level_ft" = round(26.90625 - 2.20 - Stage_ft, 2)) # Water level below ground surface
-    print(head(hobo_tbl))
+    # print(head(hobo_tbl))
   } else {
     ### Calcualte all discharges and save df2 to a new df with discharge info
     df_HOBO <- HOBOcalcQ(schema = schema, loc = loc, df_HOBO = df2)
@@ -472,7 +474,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
 
   ### Set record IDs
   setIDs <- function(){
-    qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_tbl}]"))
+    qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_table}]"))
     ### Get current max ID
     if(is.na(qry)) {
       qry <- 0
@@ -511,7 +513,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
       
       ### ID flags
       df_flags$ID <- seq.int(nrow(df_flags)) + ID.max.flags
-      df_flags$DataTableName <- hobo_tbl
+      df_flags$DataTableName <- hobo_table
       df_flags$DateFlagged <-  Sys.Date()
       df_flags$ImportStaff <-  username
       df_flags$Comment <- "Flags generated during data import"
@@ -525,12 +527,12 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   df_flags <- setFlagIDs()
   
   ### Reorder and select columns to match db
-  col_order <- c(dbListFields(con, schema_name = schema, name = hobo_tbl), "Logger_temp_f")
+  col_order <- c(dbListFields(con, schema_name = schema, name = hobo_table), "Logger_temp_f")
   
   ### Grab last 1 days records to plot with new data to check for missed data corrections
-  t <- min(df_HOBO$DateTimeUTC)
+  t <- min(df_HOBO$DateTimeUTC) %>% as_datetime()
   
-  hobo_tbl <- tbl(con, Id(schema = schema, table = hobo_tbl))
+  hobo_tbl <- tbl(con, Id(schema = schema, table = hobo_table))
 
   # hobo_prior$DateTimeUTC <-  force_tz(hobo_prior$DateTimeUTC, tzone = "UTC") 
   hobo_prior <- hobo_tbl %>% 
@@ -868,7 +870,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   file <- paste0(updir,"/", hobo_txt_file)
   hobo_file <- str_replace(hobo_txt_file, "txt", "hobo")
   if(loc == "SYW177"){
-    hobo_tbl <- "tbl_HOBO_WELLS"
+    hobo_table <- "tbl_HOBO_WELLS"
   }
   ### Import the data to the database
   schema <- "Wachusett"
@@ -877,7 +879,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   tz <- 'UTC'
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   ### Write data
-  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_tbl}")), value = df_hobo, append = TRUE)
+  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_table}")), value = df_hobo, append = TRUE)
 
   # Flag data
   if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
@@ -895,7 +897,8 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   file.rename(file, paste0(subdir, "/", hobo_txt_file))
   file.rename(paste0(updir,"/", hobo_file), paste0(subdir, "/", hobo_file))
   
-  SendEmail(df=df_hobo, table=hobo_tbl, file=hobo_file, emaillist=emaillist, username=username, userlocation=userlocation)
+  SendEmail(df=df_hobo, table = hobo_table, file = hobo_file, 
+            emaillist = emaillist, username = username, userlocation = userlocation)
   
   print(paste0("HOBO Data finished importing at ", Sys.time()))
   return("Import Successful")

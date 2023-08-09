@@ -71,7 +71,9 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   df_trib_monitoring <- tbl(con, Id(schema = schema, table = "tblTributaryFieldNotes"))
   df_trib_monitoring <- df_trib_monitoring %>%
     select(-"Edit_timestamp") %>%
-    collect() %>%
+    collect() 
+  
+  df_trib_monitoring <- df_trib_monitoring %>%
     dplyr::arrange(desc(FieldObsDate))
   
   # db_hobo <- tbl(con, Id(schema = schema, table = "tbl_HOBO"))
