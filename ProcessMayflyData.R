@@ -46,7 +46,7 @@ if(str_detect(df$DateTimeUTC[1], "/")) {
   if(str_detect(df$DateTimeUTC[1], "-")) {
     print("Dates formatted with dashes")
     df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
-    df$DateTimeUTC <- ifelse(loc -- "MD02", df$DateTimeUTC, df$DateTimeUTC + lubridate::hours(5))
+    df$DateTimeUTC <- ifelse(loc == "MD02", df$DateTimeUTC, df$DateTimeUTC + lubridate::hours(5))
   }
 }
   
