@@ -7,10 +7,7 @@
 #  R version 3.5.3 (2019-03-11)  i386
 ##############################################################################.
 
-# mayfly_files <- list.files(paste0(wach_team_root, config[["Mayfly_Staging"]])) %>% print()
-# mayfly_file <- mayfly_files[1]
-# username <- "Dan Crocker"
-# stage <- 1.48 ### Enter stage at time of data download (Numeric entry in Shiny App)
+    
 # #   
 PROCESS_MAYFLY <- function(mayfly_file, username, userlocation){
   
@@ -39,15 +36,20 @@ names(df) <- c("DateTimeUTC", "RawConductivity_uScm", "RawStage_ft", "Logger_tem
 ### Format Date-Time stamp - Need two tries here because Excel will mess with date formats 
 if(str_detect(df$DateTimeUTC[1], "/")) {
   print("Dates formatted with slashes")
-  df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC") 
-  ### Location MDO2 Mayfly is set to UTC, so no tz offset required. 
-  df$DateTimeUTC <- ifelse(loc == "MD02", df$DateTimeUTC, df$DateTimeUTC + lubridate::hours(5))
+  df$DateTimeUTC <- mdy_hm(df$DateTimeUTC, tz = "UTC")
+  # df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC") 
 } else {
   if(str_detect(df$DateTimeUTC[1], "-")) {
     print("Dates formatted with dashes")
-    df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
-    df$DateTimeUTC <- ifelse(loc == "MD02", df$DateTimeUTC, df$DateTimeUTC + lubridate::hours(5))
+    df$DateTimeUTC <- ymd_hms(df$DateTimeUTC, tz = "UTC")
+    # df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
   }
+}
+
+### If Location = MDO2 Mayfly is set to UTC, so no tz offset required. 
+if(loc != "MD02") {
+  df <- df %>% 
+    mutate(DateTimeUTC = DateTimeUTC + hours(5)) 
 }
   
 ### Filter out records where all Hydros21 values are -9999 
