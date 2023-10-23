@@ -441,7 +441,7 @@ p <- p +
         axis.title.y = element_text(vjust = 2, face = "bold"),
         axis.title.x = element_text(vjust = 2, face = "bold"),
         plot.title = element_text(hjust = 0.5, face = "bold")) +
-  annotate("text", x = 0.5 * xmax, y = ymax, label = paste0("Rating Equation: ", eq1), color ="blue")
+  annotate("text", x = 0.5 * xmax, y = ymax, label = paste0("Rating Equation: ", r$eq1), color ="blue")
   
   # Add rating equation(s) and break1 if exists
     if(parts == 2){
