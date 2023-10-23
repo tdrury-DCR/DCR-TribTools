@@ -441,7 +441,7 @@ p <- p +
         axis.title.y = element_text(vjust = 2, face = "bold"),
         axis.title.x = element_text(vjust = 2, face = "bold"),
         plot.title = element_text(hjust = 0.5, face = "bold")) +
-  # annotate("text", x = 0.5 * xmax, y = ymax, label = paste0("Rating Equation: ", eq1), color ="blue")
+  annotate("text", x = 0.5 * xmax, y = ymax, label = paste0("Rating Equation: ", eq1), color ="blue")
   
   # Add rating equation(s) and break1 if exists
     if(parts == 2){
@@ -709,7 +709,7 @@ df_Q$part <- mapply(part,x) %>% as.numeric()
   df_Q$Q <- round(df_Q$Q, digits = 2)
    
   ########################################################################.
-  ###                              PLOT                                ####
+  ###                              PLOT                               ####
   ########################################################################.   
   
   cols <- c("Poor" = "red", "Fair" = "orange", "Good" = "green", "Excellent" = "blue", "NA" = "black")
