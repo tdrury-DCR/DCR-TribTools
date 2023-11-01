@@ -69,7 +69,7 @@ HOBO_UI <- function(id) {
 ###         SERVER          ####
 ################################.
         
-HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, hobo_tbl, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username, userlocation){  # Same as rating info - all in Hydro DB
+HOBO <- function(input, output, session, hobo_path, updir, hobo_db, df_trib_monitoring, baro_table, hobo_table, mayfly_data_dir, mayfly_data_processed, ImportFlagTable, username, userlocation){  # Same as rating info - all in Hydro DB
 
 ### Source the HOBO functions ####
   source("ProcessHOBO.R", local = T) ### source Script ####
@@ -77,6 +77,8 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
   ns <- session$ns 
   
   ImportStatus <- reactiveVal("")
+  
+  rxvals <- reactiveValues()
   
 ### INTRO TEXT #### 
   output$intro <- renderText({paste0("The HOBO/MAYFLY DATA TOOL is designed to facilitate the processing and importing of HOBO and MAYFLY Logger Data.\n 
@@ -89,23 +91,9 @@ HOBO <- function(input, output, session, hobo_path, updir, hobo_db, baro_tbl, ho
 
 # filter files to show only barometric files until there are none, and then show the other files     
 # Make the File List
-files <- reactive({
   
-  mayfly_files <- list.files(mayfly_data_dir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.csv$")
-  hobo_txt_files  <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+.txt$")
-  barometer_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = "^[^~$]+(_BARO_).*\\.txt$")
-  all_files <- c(hobo_txt_files, mayfly_files)
+rxvals$files <- get_files(updir, mayfly_data_dir)
   
-    if(length(barometer_files) > 0){
-      files <- barometer_files
-    } else {
-      show('stage')
-      files <- all_files 
-    }
-
-files <- files
-})
-
 var2 <- reactive({
   input$var2
 })
@@ -127,49 +115,60 @@ x <- input$file
 
 ### Check to see if there are any BARO files to be processed
 baro_files <- reactive({
-  if(any(str_detect(files(), pattern = "(_BARO_).*\\.txt$"))){
+  req(rxvals$files)
+  if(any(str_detect(rxvals$files, pattern = "(_BARO_).*\\.txt$"))){
     TRUE
   } else {
     FALSE
   }
 })
 
+
+observe({
+  if(isFALSE(baro_files())) {
+    show('stage')
+  }
+})
+
 ### Files UI ####  
 output$file.UI <- renderUI({
+  req(rxvals$files)
   selectInput(inputId = ns("file"),
               label = "1. Choose file to upload:",
-              choices = files(),
+              choices = rxvals$files,
               selected = 1)
 })
 
 
 ### 
 # Update Select Input when a file is imported (actually when the import button is pressed (successful or not))
-  observeEvent(input$import, {
-    updateSelectInput(session = session,
-                      inputId = ns("file"),
-                      label = "1. Choose file to upload:",
-                      choices = files(),
-                      selected = "")
-  }) 
+  # observeEvent(input$import, {
+  #   updateSelectInput(session = session,
+  #                     inputId = ns("file"),
+  #                     label = "1. Choose file to upload:",
+  #                     choices = rxvals$files,
+  #                     selected = "")
+  # }) 
 ### Well File ####  
 well_file <-   reactive({
+  req(input$file)
   length(grep(input$file, pattern = "(SYW177_).*\\.txt$")) 
 })
    
 ### Stage UI ####
 output$stage.UI <- renderUI({
- req(file_type() %in% c("hobo","mayfly"))
+ req(file_type() %in% c("hobo"))
  numericInput(inputId = ns("stage"),
               label = "Provide stage (ft) at time of download:", value = 0, min = 0, max = 30, step = 0.01, width = "100%")
               
 })
   
 var2_choices <- reactive({
+  req(file_type())
   if (file_type() == "hobo") {
     c("Discharge", "Temperature")
   } else if (file_type() == "mayfly") {
-    c("Discharge", "Temperature", "Conductivity")
+    c("Temperature", "Conductivity")
   }
 })
     
@@ -179,7 +178,7 @@ output$var2.UI <- renderUI({
   radioButtons(inputId = ns("var2"),
                label = "Select the secondary Y axis value to plot:", 
                choices = var2_choices(),
-               selected = "Discharge", 
+               selected = var2_choices()[1], 
                inline = T,
                width = "100%")
 })
@@ -206,7 +205,7 @@ dfs <- eventReactive(input$process,{
   switch(file_type(),
          "baro" = {PROCESS_BARO(baro_file = input$file, userlocation = userlocation)},
          "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username, userlocation = userlocation)},
-         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username, userlocation = userlocation)}
+         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, username = username, userlocation = userlocation)}
   )
 })
 
@@ -225,7 +224,7 @@ plot <- eventReactive(input$process,{
 #### PLOT OUTPUT ####
 output$plot <- renderPlot({
   req(try(df()))
-  plot()
+  # plot()
   if(file_type() == "baro"){
     PREVIEW_BARO(df(), df_prior(), var2 = NULL)
   } else {
@@ -274,7 +273,7 @@ import_status <- reactive({
 df <- reactive({
   dfs()[[1]]
 })
-df_flags  <- reactive({
+df_flags <- reactive({
   dfs()[[2]]
 })
 df_prior <- reactive({
@@ -306,7 +305,7 @@ observeEvent(input$import, {
     switch(file_type(),
            "baro" = {IMPORT_BARO(df_baro = df(), baro_file = input$file, userlocation = userlocation)},
            "hobo" = {IMPORT_HOBO(df_hobo = df(), df_flags = df_flags(), hobo_txt_file = input$file, userlocation = userlocation)},
-           "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), df_flags = df_flags(), mayfly_file = input$file, userlocation = userlocation)}
+           "mayfly" = {IMPORT_MAYFLY(df_mayfly = df(), mayfly_file = input$file, userlocation = userlocation)}
     ),
     error = function(e) e)
   
@@ -320,8 +319,8 @@ observeEvent(input$import, {
     print(paste0("Successful import of ", nrow(df()), " records in '", input$file, "' to Database at ", Sys.time()))
     ImportStatus(paste0("Successful import of ", nrow(df()), " records from file: '", input$file, "' to Database at ", Sys.time()))
   }
-  return(ImportFailed)
-  
+  rxvals$files <- get_files(updir, mayfly_data_dir)
+  return(ImportStatus)
 })
 # Add text everytime successful import
 # observeEvent(input$import, {
@@ -361,7 +360,7 @@ dt_colnames <- reactive({
     switch(file_type(),
            "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)"),
            "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
-           "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)", "Conductivity (uS/cm)")
+           "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "RawStage (ft)", "RawConductivity (uS/cm)")
     )
   }
 })
@@ -372,7 +371,12 @@ dt_colnames <- reactive({
 ### Processed data Table - Only make table if processing is successful
 output$table_data_preview <- renderDataTable({
   req(try(df()))
-  dt <- df()
+  dt <- if(file_type() == "mayfly") {
+    df()[ , c(1:5,8)]
+  } else {
+    df()
+  }
+  
   dt$DateTimeUTC <- as.character(format(dt$DateTimeUTC, format = "%Y-%m-%d %H:%M"))
   datatable(dt, 
             colnames = dt_colnames(),
@@ -394,11 +398,7 @@ output$table_flag_preview <- renderDataTable({
 ### Trib Monitoring Table from Database
 output$trib_monitoring <- renderDataTable({
   req(try(df_trib_monitoring))
-  trib_monitoring <- df_trib_monitoring %>% 
-    select(-"Edit_timestamp") %>% 
-    dplyr::arrange(desc(FieldObsDate))
-  
-  datatable(trib_monitoring, filter = "top", options = list(pageLength = 25))
+  datatable(df_trib_monitoring, filter = "top", options = list(pageLength = 25))
 })
 
 } # end server function
