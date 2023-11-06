@@ -51,7 +51,7 @@ if(str_detect(df$DateTimeUTC[1], "/")) {
 }
 
 ### If Location = MDO2 Mayfly is set to UTC, so no tz offset required. 
-if(!loc %in% c("MD02", "M110")) {
+if(!loc %in% c("MD02")) {
   df <- df %>% 
     mutate(DateTimeUTC = DateTimeUTC + hours(5)) 
 }
