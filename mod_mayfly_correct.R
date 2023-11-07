@@ -119,7 +119,7 @@ MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, userna
   hobo_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tbl_HOBO"))
   
   # short_locs is hard coded to avoid expensive database querying... need to add M110 once online
-  short_locs <-  c("MD01", "MD02", "MD03", "MD05", "MD06", "MD83")
+  short_locs <-  c("MD01", "MD02", "MD03", "MD05", "MD06", "MD83", "M110")
   full_locs <- df_trib_monitoring$Location %>% unique() %>% sort() 
   loc_choices <- full_locs[match(short_locs, substrRight(full_locs, 4))]
   
