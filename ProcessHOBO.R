@@ -33,7 +33,6 @@
 # library(lubridate)
 # library(scales)
 # library(odbc)
-# library(RODBC)
 # library(DBI)
 # library(readxl)
 # library(glue)
@@ -342,11 +341,12 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
 ###
 
 # # ### List txt files for HOBO downloads to be processed
+# updir <-  glue("{wach_team_root}{updir}")
 # hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
 # hobo_txt_file <- hobo_txt_files[8] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 1.28 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 0.54 ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -493,12 +493,13 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
       ### Split the flags into a separate df and assign new ID
       df_flags <- df_HOBO[,c("ID","RatingFlag")] %>%
         rename("SampleID" = ID, "FlagCode" = RatingFlag) %>%
-        drop_na()
+        drop_na() %>% 
+        as.data.frame()
     } else {
-      df_flags <- NA
+      df_flags <- 1
     }
     
-    if(!is.na(df_flags)){
+    if("data.frame" == class(df_flags)){
       query.flags <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{ImportFlagTable}]"))
       # Get current max ID
       if(is.na(query.flags)) {
@@ -519,7 +520,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
       # Reorder df_flags columns to match the database table exactly # Add code to Skip if no df_flags
       df_flags <- df_flags[,c(3,4,1,2,5,6,7)]
     } else { # Condition TRUE - All FlagCodes are NA, thus no df_flags needed, assign NA
-      df_flags <- NA
+      df_flags <- 1
     } # End flags processing chunk
   } # End set flags function
   df_flags <- setFlagIDs()
@@ -879,7 +880,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_table}")), value = df_hobo, append = TRUE)
 
   # Flag data
-  if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
+  if ("data.frame" == class(df_flags)){ # Check and make sure there is flag data to import
     print("Importing flags...")
     odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
   }
