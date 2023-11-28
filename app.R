@@ -62,6 +62,11 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   tz <- 'UTC'
   con <<- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
+  ### DISCHARGE CALCULATOR Args
+  location_table <- config[["LocationsTable"]]
+  df_locs <- dbReadTable(con, Id(schema = schema, table = location_table))
+  
+  
   ### RATING TOOL Function Args
   measurement_data <- config[["DischargeTable"]] ### Set the table name with discharges
   rating_data <- config[["RatingsTable"]] ### Get the rating information
@@ -122,6 +127,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   source("mod_mayfly_correct.R")
   source("fun_mayfly_correct.R")
   source("HOBO_calcQ.R")
+  source("mod_dischargecalc.R")
   ### UI  ####
   ### font-family: 'Lobster', cursive;
   
@@ -132,8 +138,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
              fluidPage(theme = shinytheme("united"),
                        h1("Tributary Sensor Data Tool"),
                        HOBO_UI("mod_hobos"))
-    ),
-    tabPanel("RATINGS",
+    ),    tabPanel("RATINGS",
              fluidPage(theme = shinytheme("united"),
                        h1("Tributary Rating Tool"),
                        RATINGS_UI("mod_ratings"))
@@ -144,7 +149,14 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
                        actionButton("refresh", "REFRESH"),
                        br(),
                        MF_CORRECT_UI("mod_mayfly_correct"))
+    ),
+    tabPanel("DISCHARGE CALCULATOR",
+             fluidPage(theme = shinytheme("united"),
+                       h1("Manual Discharge Calculator"),
+                       DISCHARGECALC_UI("mod_dischargecalc"))
     )
+    
+    
   ) ### END UI ####
   
   ### SERVER  ####
@@ -157,6 +169,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
                mayfly_data_processed = mayfly_data_processed, ImportFlagTable = ImportFlagTable, username = username, userlocation = userlocation)
     callModule(MF_CORRECT, "mod_mayfly_correct", df_fp = df_fp, 
                df_trib_monitoring = df_trib_monitoring, username, userlocation)
+    callModule(DISCHARGE, "mod_dischargecalc", df_ratings = df_ratings, df_locs = df_locs, userlocation)
     # Stop app when browser session window closes
     session$onSessionEnded(function() {
       stopApp()
@@ -209,6 +222,7 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   source("ProcessHOBO.R")
   source("outlook_email.R")
   source("HOBO_calcQ.R")
+  source("mod_dischargecalc.R")
   # source("ProcessMayflyData.R")
   
   ui <-  navbarPage(
