@@ -381,7 +381,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     if(loc %in% c("FHLN", "FPRN", "HLNW", "PRNW")){
       baro <- "FPRN"
     } else {
-      baro <- c("MD02", "MD83")
+      baro <- c("MD02", "MD83", "MD05")
     }
   } else { ### Quabbin
     baro <- "213"
