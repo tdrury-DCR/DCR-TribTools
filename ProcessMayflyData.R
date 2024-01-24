@@ -421,8 +421,8 @@ IMPORT_MAYFLY <- function(df_mayfly, mayfly_file, userlocation){
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   schema <- userlocation
   
-  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{mayfly_tbl}")), value = df_mayfly, append = TRUE)
-  
+  odbc::dbWriteTable(con, Id(schema=schema, table=mayfly_tbl), value = df_mayfly, append = TRUE)
+
   # Disconnect from db and remove connection obj
   dbDisconnect(con)
   rm(con)
