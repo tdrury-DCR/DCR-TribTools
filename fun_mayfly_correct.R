@@ -542,7 +542,7 @@ IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
   if("Stage_ft" %in% names(df_mayfly)) {
     
     df_temp <- df_mayfly %>% select(c("ID", "Stage_ft", "Discharge_cfs"))
-    odbc::dbWriteTable(con, DBI::SQL("#tempMayfly"), value = df_temp, append = FALSE)
+    odbc::dbWriteTable(con, Id(table="#tempMayfly"), value = df_temp, append = FALSE)
     # returnTemp <- dbReadTable(con, Id(schema = schema, table = '#tempMayfly'))
     # Join 
     qry_join <- glue("UPDATE A SET A.[Stage_ft] = temp.[Stage_ft], 
@@ -554,7 +554,7 @@ IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
     # Flag data
     if ("data.frame" %in% class(df_flags)){ # Check and make sure there is flag data to import
       print("Importing flags...")
-      odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
+      odbc::dbWriteTable(con, Id(schema=schema, table=ImportFlagTable), value = df_flags, append = TRUE)
     } else {
       print("No flags to import")
     }
@@ -573,7 +573,7 @@ IMPORT_CORRECTED_MAYFLY <- function(df_mayfly, df_flags, userlocation){
   } else {
     
     df_temp <- df_mayfly %>% select(c("ID", "Conductivity_uScm"))
-    odbc::dbWriteTable(con, DBI::SQL("#tempMayfly"), value = df_temp, append = FALSE)
+    odbc::dbWriteTable(con, Id(table="#tempMayfly"), value = df_temp, append = FALSE)
     # returnTemp <- dbReadTable(con, Id(schema = schema, table = '#tempMayfly'))
     # Join 
     qry_join <- glue("UPDATE A SET A.[Conductivity_uScm] = temp.[Conductivity_uScm] FROM [{schema}].[{mayfly_tbl}] A
