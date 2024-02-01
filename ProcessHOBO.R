@@ -413,7 +413,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   # df_baro$DateTimeUTC <- with_tz(df_baro$DateTimeUTC, tzone = "America/New_York")
   
   ### Get existing data to check for duplicates
-  if(loc == "SYW177"){
+  if(loc %in% c("SYW177", "EPW2")) {
     hobo_table <- "tbl_HOBO_WELLS"
   }
   
@@ -422,7 +422,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
 
 
   ### Check for duplicate existing data in database
-  duplicates <- semi_join(df, hobo_existing, by="DateTimeUTC")
+  duplicates <- semi_join(df, hobo_existing, by ="DateTimeUTC")
   
   if (nrow(duplicates) > 0){
     stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," HOBO records in the database."))
@@ -448,30 +448,46 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   last_stage <- df2$raw_stage[df2$DateTimeUTC == end_time]
   
   ### Calculate the stage offset to be applied to each raw stage (stage is a function argument)
-  if(loc == "SYW177"){
+  
+  if(loc == "SYW177") {
     offset <-  26.90625 - stage -  last_stage
   } else {
-    offset <- stage - last_stage
+    if(loc == "EPW2") {
+      offset <- 500.07 - stage - last_stage
+    } else {
+      offset <- stage - last_stage
+    }
   }
   ### Calculate the final stage using the offset
   df2$Stage_ft <- round(df2$raw_stage + offset, digits = 3)
   
   ### Source the function to calculate discharges
   # source("HOBO_calcQ.R")
-  if(loc == "SYW177"){
+  if(loc == "SYW177") {
     ### Well depth from casing top to bottom = 26.90625, stick-up height (2.20 + WLM calibration adjustment) = 2.00 ft 
     df_HOBO <- df2 %>% 
       mutate("RatingFlag" = NA,
              "Discharge_cfs" = NA,
-             "Water_Level_ft" = round(26.90625 - 2.20 - Stage_ft, 2)) # Water level below ground surface
+             "Water_DBGS_ft" = round(26.90625 - 2.20 - Stage_ft, 2), # Water level below ground surface# Water level Elevation
+             "Water_Elevation_ft" = NA_real_) # Water level Elevation ft
     # print(head(hobo_tbl))
   } else {
-    ### Calcualte all discharges and save df2 to a new df with discharge info
-    df_HOBO <- HOBOcalcQ(schema = schema, loc = loc, df_HOBO = df2)
+    if(loc == "EPW2"){
+      ### Well depth from casing top to bottom = 26.90625, stick-up height (2.20 + WLM calibration adjustment) = 2.00 ft 
+      df_HOBO <- df2 %>% 
+        mutate("RatingFlag" = NA,
+               "Discharge_cfs" = NA,
+               "Water_DBGS_ft" = NA_real_, # Water level below ground surface
+               "Water_Elevation_ft" = round(500.07 - Stage_ft, 2)) # Water level Elevation ft
+      # print(head(hobo_tbl))
+    } else {
+      ### Calculate all discharges and save df2 to a new df with discharge info
+      df_HOBO <- HOBOcalcQ(schema = schema, loc = loc, df_HOBO = df2)
+    }
   }
-
+  
   ### Set record IDs
-  setIDs <- function(){
+  setIDs <- function() {
     qry <- dbGetQuery(con, glue("SELECT max(ID) FROM [{schema}].[{hobo_table}]"))
     ### Get current max ID
     if(is.na(qry)) {
@@ -485,6 +501,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     ### Set IDs
     df_HOBO$ID <- seq.int(nrow(df_HOBO)) + ID_max
   }
+  
   df_HOBO$ID <- setIDs()
   
   ### Make a flag df if there are any discharge related flags (only above/below rating curve can be automatically calculated)
@@ -662,8 +679,10 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
             "Water Temperature (C) - manual" = "magenta", #cols[6]
             "Discharge (cfs)" = "blue4",  #cols[7]
             "Discharge (cfs) - prior" = "steelblue", #cols[8]
-            "Groundwater level (ft below ground surface)" = "blue3", #cols[9]
-            "Groundwater level (ft below ground surface) - prior" = "blue4" #cols[10]
+            "Groundwater level (ft below ground surface)" = "blue3",#cols[9]
+            "Groundwater level (ft below ground surface) - prior" = "blue4", #cols[10]
+            "Groundwater Elevation (ft)" = "blue3", #cols[9]
+            "Groundwater Elevation (ft) - prior" = "blue4" #cols[10]
   )
   ### Create empty vectors that will be filled based on the parameters on each plot
   cols_legend <- NULL
@@ -760,16 +779,26 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
 
     ### Add legend items with colors for data being added to plot in this step
-    if(loc == "SYW177"){
+    if(loc %in% c("EPW2", "SYW177")){
       ### Add legend items with colors for data being added to plot in this step
       cols_legend <- append(cols_legend,c(cols[10],cols[5]))
       ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-      linetype_legend <- append(linetype_legend,c("Groundwater level (ft below ground surface) - prior" = "solid",
-                                                  "Water Temperature (C) - prior" = "solid"))
+      linetype_legend <- append(linetype_legend,
+                                switch(loc,
+                                       "EPW2" =  c("Groundwater Elevation (ft) - prior" = "solid",
+                                                   "Water Temperature (C) - prior" = "solid"),
+                                       "SYW177" = c("Groundwater level (ft below ground surface) - prior" = "solid",
+                                                    "Water Temperature (C) - prior" = "solid")
+                                ))
       ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-      shape_legend <- append(shape_legend,c("Groundwater level (ft below ground surface) - prior" = NA,
-                                            "Water Temperature (C) - prior" = NA))
-
+      shape_legend <- append(shape_legend,
+                             switch(loc,
+                                    "EPW2" = c("Groundwater Elevation (ft) - prior" = NA,
+                                               "Water Temperature (C) - prior" = NA),
+                                    "SYW177" = c("Groundwater level (ft below ground surface) - prior" = NA,
+                                                 "Water Temperature (C) - prior" = NA)
+                             )
+      )
     } else {
       ### Add legend items with colors for data being added to plot in this step
       cols_legend <- append(cols_legend,c(cols[2]))
@@ -867,7 +896,7 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   loc <- loc[,1]
   file <- paste0(updir,"/", hobo_txt_file)
   hobo_file <- str_replace(hobo_txt_file, "txt", "hobo")
-  if(loc == "SYW177"){
+  if(loc %in% c("SYW177", "EPW2")){
     hobo_table <- "tbl_HOBO_WELLS"
   }
   ### Import the data to the database
@@ -901,6 +930,3 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   print(paste0("HOBO Data finished importing at ", Sys.time()))
   return("Import Successful")
 }
-
-
-
