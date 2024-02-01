@@ -905,18 +905,27 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  
+  ### Connect to Database 
+  pool <- dbPool(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+ 
   ### Write data
-  odbc::dbWriteTable(con, Id(schema=schema, table=hobo_table), value = df_hobo, append = TRUE)
-
+  poolWithTransaction(pool, function(conn) {
+    pool::dbWriteTable(pool, DBI::Id(schema = schema, table = hobo_table),value = df_hobo, append = TRUE, row.names = FALSE)
+  })
   # Flag data
   if ("data.frame" == class(df_flags)){ # Check and make sure there is flag data to import
     print("Importing flags...")
-    odbc::dbWriteTable(con, Id(schema=schema, table=ImportFlagTable), value = df_flags, append = TRUE)
+    poolWithTransaction(pool, function(conn) {
+      pool::dbWriteTable(pool, DBI::Id(schema = schema, table = ImportFlagTable), value = df_flags, append = TRUE, row.names = FALSE)
+    })
+  } else {
+    print("There were no flags to import")
   }
-  # Disconnect from db and remove connection obj
-  dbDisconnect(con)
-  rm(con)
+  
+  #* Close the database pool ----
+  poolClose(pool)
+  rm(pool)
   
   ### Move the processed raw data file and hobo file to the appropriate processed folder
   dir_num <- as.numeric(which(!is.na(str_match(list.dirs(hobo_path, recursive = T, full.names = T), loc))))
