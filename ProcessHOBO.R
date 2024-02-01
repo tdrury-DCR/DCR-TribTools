@@ -312,7 +312,8 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
     tz <- 'UTC'
     con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
 
-  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{baro_table}")), value = df_baro, append = TRUE)
+  odbc::dbWriteTable(con, Id(schema=schema,table=baro_table), value = df_baro, append = TRUE)
+
   ### Disconnect from db and remove connection obj
   dbDisconnect(con)
   rm(con)
@@ -906,12 +907,12 @@ IMPORT_HOBO <- function(df_hobo, df_flags, hobo_txt_file, userlocation){
   tz <- 'UTC'
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   ### Write data
-  odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{hobo_table}")), value = df_hobo, append = TRUE)
+  odbc::dbWriteTable(con, Id(schema=schema, table=hobo_table), value = df_hobo, append = TRUE)
 
   # Flag data
   if ("data.frame" == class(df_flags)){ # Check and make sure there is flag data to import
     print("Importing flags...")
-    odbc::dbWriteTable(con, DBI::SQL(glue("{database}.{schema}.{ImportFlagTable}")), value = df_flags, append = TRUE)
+    odbc::dbWriteTable(con, Id(schema=schema, table=ImportFlagTable), value = df_flags, append = TRUE)
   }
   # Disconnect from db and remove connection obj
   dbDisconnect(con)
