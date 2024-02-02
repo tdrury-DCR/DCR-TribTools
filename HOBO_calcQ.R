@@ -47,7 +47,7 @@ HOBOcalcQ <- function(schema, loc, df_HOBO) {
     ratings2 <- ratings[ratings$MWRA_Loc %in% loc & !is.na(ratings$DateTimeStartET),]
 
     # For each stage value assign the appropriate rating number based on the date ranges of the ratings
-    x <- as_date(df_HOBO$DateTimeUTC)
+    x <- df_HOBO$DateTimeUTC
     y <- loc
 
     pickRating <- function(x,y){
