@@ -20,7 +20,8 @@ ipak <- function(pkg){
 ### NOTE - Shiny must be installed and loaded in the LaunchAppGitHub.R script - any other packages requred should be listed below
 
 packages <- c("DBI", "odbc","shiny","shinyjs", "tidyverse", "lubridate", "DT", "naniar", "shinyWidgets", "magrittr", "xts", "shinyTime",
-              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue", "RDCOMClient", "dygraphs", "logging")
+              "plotly",  "scales", "stringr", "shinythemes", "nlstools", "readxl", "shinycssloaders", "glue", "RDCOMClient", "dygraphs", 
+              "pool", "logging")
 ipak(packages) 
 
 substrRight <<- function(x, n){

@@ -342,12 +342,12 @@ IMPORT_BARO <- function(df_baro, baro_file, userlocation){
 ###
 
 # # ### List txt files for HOBO downloads to be processed
-# updir <-  glue("{wach_team_root}{updir}")
+# updir <- updir
 # hobo_txt_files <- list.files(updir, recursive = T, full.names = F, include.dirs = T, pattern = ".txt")
 # hobo_txt_files ### Show the files
-# hobo_txt_file <- hobo_txt_files[8] ### Pick a file
+# hobo_txt_file <- hobo_txt_files[2] ### Pick a file
 # username <- "Dan Crocker"
-# stage <- 0.54 ### Enter stage at time of data download (Numeric entry in Shiny App
+# stage <- 3.19  ### Enter stage at time of data download (Numeric entry in Shiny App
 
 PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   print(paste0("HOBO Data started processing at ", Sys.time()))
@@ -453,12 +453,9 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   if(loc == "SYW177") {
     offset <-  26.90625 - stage -  last_stage
   } else {
-    if(loc == "EPW2") {
-      offset <- 500.07 - stage - last_stage
-    } else {
-      offset <- stage - last_stage
-    }
+    offset <- stage - last_stage
   }
+
   ### Calculate the final stage using the offset
   df2$Stage_ft <- round(df2$raw_stage + offset, digits = 3)
   
@@ -654,10 +651,10 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   return(dfs)
 } ### End function
-
+# 
 # df_hobo <- df_HOBO
 # var2 = "Discharge"
-# dfs <- PROCESS_HOBO(hobo_txt_file, stage, username,userlocation="Wachusett")
+# dfs <- PROCESS_HOBO(hobo_txt_file, stage, username, userlocation ="Wachusett")
 # df_hobo <- dfs[[1]]
 # df_flags <- dfs[[2]]
 # df_prior <- dfs[[3]]
@@ -682,8 +679,8 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
             "Discharge (cfs) - prior" = "steelblue", #cols[8]
             "Groundwater level (ft below ground surface)" = "blue3",#cols[9]
             "Groundwater level (ft below ground surface) - prior" = "blue4", #cols[10]
-            "Groundwater Elevation (ft)" = "blue3", #cols[9]
-            "Groundwater Elevation (ft) - prior" = "blue4" #cols[10]
+            "Groundwater Elevation (ft)" = "blue3", #cols[11]
+            "Groundwater Elevation (ft) - prior" = "blue4" #cols[12]
   )
   ### Create empty vectors that will be filled based on the parameters on each plot
   cols_legend <- NULL
@@ -697,77 +694,108 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
   }
   
   if(loc == "SYW177"){
-    title <- paste0("Groundwater Level and Temperature from HOBO\n At Location ", loc)
+    title <- paste0("Groundwater Level and Temperature from HOBO\n at Location ", loc)
     y1lab <- "Groundwater Level (ft below ground surface)"
-    y1lim <- max(pd$Water_Level_ft)
-    y1data <- pd$Water_Level_ft
-    y1prior <- df_prior$Water_Level_ft
+    y1lim <- max(pd$Water_DBGS_ft)
+    y1data <- pd$Water_DBGS_ft
     y1color <- "Groundwater level (ft below ground surface)"
-    y1prior_col <- "Groundwater level (ft below ground surface) - prior"
     y2data <- pd$Logger_temp_c
-    y2col <- "Water Temperature (C)"
-    y2prior <- df_prior$Logger_temp_c
-    y2prior_col <- "Water Temperature (C) - prior"
     y2lim <- max(pd$Logger_temp_c)
     y2lab <- "Water Temperature (C)"
+    y2col <- "Water Temperature (C)"
+    if(prior) {
+      y1prior <- df_prior$Water_DBGS_ft
+      y2prior <- df_prior$Logger_temp_c
+      y2prior_col <- "Water Temperature (C) - prior"
+      y1prior_col <- "Groundwater level (ft below ground surface) - prior"
+    }
     ### Add legend items with colors for data being added to plot in this step
-    cols_legend <- append(cols_legend,c(cols[9],cols[4]))
+    cols_legend <- append(cols_legend,c(cols[10],cols[4]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-    linetype_legend <- append(linetype_legend,c("Groundwater level (ft below ground surface)" = "solid",
+    linetype_legend <- append(linetype_legend, c("Groundwater level (ft below ground surface)" = "solid",
                                                 "Water Temperature (C)" = "solid"))
     ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-    shape_legend <- append(shape_legend,c("Groundwater level (ft below ground surface)" = NA,
+    shape_legend <- append(shape_legend, c("Groundwater level (ft below ground surface)" = NA,
                                           "Water Temperature (C)" = NA))
-    
   } else {
-    y1lab <- "Stage (ft)"
-    if(nrow(df_stage) > 0){
-                 y1lim <- max(c(pd$Stage_ft,df_stage$FinalResult))
-                    } else {y1lim <- max(pd$Stage_ft)}
-    y1data <- pd$Stage_ft
-    y1prior <- df_prior$Stage_ft
-    y1prior_col <- "Stage (ft) - prior"
-    y1color <- "Stage (ft)"
-    if(var2 == "Temperature"){
-      title <- paste0("Stage and Water Temperature at Location ", loc)
-      y2data <- pd$Logger_temp_c
-      y2prior <- df_prior$Logger_temp_c
-      y2col <- "Water Temperature (C)"
-      if(!is.null(df_temp) && nrow(df_temp) > 0){
-              y2lim <- max(c(pd$Logger_temp_c,df_temp$FinalResult)) 
-                    } else {y2lim <- max(pd$Logger_temp_c)}
-      y2prior_col <- "Water Temperature (C) - prior"
+    if(loc == "EPW2"){
+      title <- paste0("Groundwater Elevation (ft) and Temperature from HOBO\n at Location ", loc)
+      y1lab <- "Groundwater Elevation (ft)"
+      y1lim <- 500
+      y1data <- pd$Water_Elevation_ft
+      y1color <- "Groundwater Elevation (ft)"
+      y2lim <- max(pd$Logger_temp_c)
       y2lab <- "Water Temperature (C)"
+      y2data <- pd$Logger_temp_c
+      y2col <- "Water Temperature (C)"
+      if(prior) {
+        y1prior <- df_prior$Water_Elevation_ft
+        y2prior <- df_prior$Logger_temp_c
+        y1prior_col <- "Groundwater Elevation (ft) - prior"
+        y2prior_col <- "Water Temperature (C) - prior"
+      }
       ### Add legend items with colors for data being added to plot in this step
-      cols_legend <- append(cols_legend,c(cols[1],cols[4]))
+      cols_legend <- append(cols_legend,c(cols[11],cols[4]))
       ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-      linetype_legend <- append(linetype_legend,c("Stage (ft)" = "solid",
+      linetype_legend <- append(linetype_legend,c("Groundwater Elevation (ft)" = "solid",
                                                   "Water Temperature (C)" = "solid"))
       ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-      shape_legend <- append(shape_legend,c("Stage (ft)" = NA,
-                                            "Water Temperature (C)" = NA))  
-      
-    } else { # Var2 is discharge
-      title <- paste0("Stage and Discharge at Location ", loc)
-      y2data <- pd$Discharge_cfs
-      y2prior <- df_prior$Discharge_cfs
-      y2col <-  "Discharge (cfs)"
-      y2lim <- max(pd$Discharge_cfs)
-      y2prior_col <- "Discharge (cfs) - prior"
-      y2lab <- "Discharge (cfs)"
-      ### Add legend items with colors for data being added to plot in this step
-      cols_legend <- append(cols_legend,c(cols[1],cols[7]))
-      ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-      linetype_legend <- append(linetype_legend,c("Stage (ft)" = "solid",
-                                                  "Discharge (cfs)" = "solid"))
-      ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-      shape_legend <- append(shape_legend,c("Stage (ft)" = NA,
-                                            "Discharge (cfs)" = NA)) 
+      shape_legend <- append(shape_legend,c("Groundwater Elevation (ft)" = NA,
+                                            "Water Temperature (C)" = NA))
+    } else {
+      y1lab <- "Stage (ft)"
+      if(nrow(df_stage) > 0){
+        y1lim <- max(c(pd$Stage_ft,df_stage$FinalResult))
+      } else {y1lim <- max(pd$Stage_ft)}
+      y1data <- pd$Stage_ft
+      y1color <- "Stage (ft)"
+      if(prior) {
+        y1prior <- df_prior$Stage_ft
+        y1prior_col <- "Stage (ft) - prior"
+      }
+      if(var2 == "Temperature"){
+        title <- paste0("Stage and Water Temperature at Location ", loc)
+        y2col <- "Water Temperature (C)"
+        y2data <- pd$Logger_temp_c
+        if(prior){
+          y2prior <- df_prior$Logger_temp_c
+        }
+        if(!is.null(df_temp) && nrow(df_temp) > 0){
+          y2lim <- max(c(pd$Logger_temp_c,df_temp$FinalResult)) 
+        } else {y2lim <- max(pd$Logger_temp_c)}
+        y2prior_col <- "Water Temperature (C) - prior"
+        y2lab <- "Water Temperature (C)"
+        ### Add legend items with colors for data being added to plot in this step
+        cols_legend <- append(cols_legend,c(cols[1],cols[4]))
+        ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+        linetype_legend <- append(linetype_legend, c("Stage (ft)" = "solid",
+                                                    "Water Temperature (C)" = "solid"))
+        ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+        shape_legend <- append(shape_legend, c("Stage (ft)" = NA,
+                                              "Water Temperature (C)" = NA))  
+      } else { # Var2 is discharge
+        title <- paste0("Stage and Discharge at Location ", loc)
+        y2data <- pd$Discharge_cfs
+        if(prior) {
+          y2prior <- df_prior$Discharge_cfs
+          y2prior_col <- "Discharge (cfs) - prior"
+        }
+        y2col <-  "Discharge (cfs)"
+        y2lim <- max(pd$Discharge_cfs)
+        y2lab <- "Discharge (cfs)"
+        ### Add legend items with colors for data being added to plot in this step
+        cols_legend <- append(cols_legend,c(cols[1],cols[7]))
+        ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+        linetype_legend <- append(linetype_legend,c("Stage (ft)" = "solid",
+                                                    "Discharge (cfs)" = "solid"))
+        ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+        shape_legend <- append(shape_legend,c("Stage (ft)" = NA,
+                                              "Discharge (cfs)" = NA)) 
+      }
     }
-  }
-  
+  }    
   mult <- y1lim / abs(y2lim)
-  
+
   plot  <- ggplot(pd, aes(x = DateTimeUTC)) +
     geom_line(aes(y = y1data, color = y1color), size = 1)  +
     geom_line(aes(y = y2data * mult, color = y2col), size = 1)
@@ -780,40 +808,38 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
       geom_vline(xintercept = min(pd$DateTimeUTC), color = "gray10", linetype = 2, size = 1.5, alpha = 0.8)
 
     ### Add legend items with colors for data being added to plot in this step
-    if(loc %in% c("EPW2", "SYW177")){
+    if(loc == "EPW2") {
       ### Add legend items with colors for data being added to plot in this step
-      cols_legend <- append(cols_legend,c(cols[10],cols[5]))
+      cols_legend <- append(cols_legend,c(cols[12],cols[5]))
       ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-      linetype_legend <- append(linetype_legend,
-                                switch(loc,
-                                       "EPW2" =  c("Groundwater Elevation (ft) - prior" = "solid",
-                                                   "Water Temperature (C) - prior" = "solid"),
-                                       "SYW177" = c("Groundwater level (ft below ground surface) - prior" = "solid",
-                                                    "Water Temperature (C) - prior" = "solid")
-                                ))
+      linetype_legend <- append(linetype_legend, c("Groundwater Elevation (ft) - prior" = "solid",
+                                                   "Water Temperature (C) - prior" = "solid"))
       ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-      shape_legend <- append(shape_legend,
-                             switch(loc,
-                                    "EPW2" = c("Groundwater Elevation (ft) - prior" = NA,
-                                               "Water Temperature (C) - prior" = NA),
-                                    "SYW177" = c("Groundwater level (ft below ground surface) - prior" = NA,
-                                                 "Water Temperature (C) - prior" = NA)
-                             )
-      )
+      shape_legend <- append(shape_legend, c("Groundwater Elevation (ft) - prior" = NA,
+                                             "Water Temperature (C) - prior" = NA))
     } else {
-      ### Add legend items with colors for data being added to plot in this step
-      cols_legend <- append(cols_legend,c(cols[2]))
-      ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-      linetype_legend <- append(linetype_legend,c("Stage (ft) - prior" = "solid"))
-      ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-      shape_legend <- append(shape_legend,c("Stage (ft) - prior" = NA))
-
-    
-
-    cols_legend <- append(cols_legend,
-                          switch(var2,
-                                 "Temperature" = c(cols[5]),
-                                 "Discharge" = c(cols[8])))
+      if(loc == "SYW177") {
+        ### Add legend items with colors for data being added to plot in this step
+        cols_legend <- append(cols_legend,c(cols[10],cols[5]))
+        
+        ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+        linetype_legend <- append(linetype_legend, c("Groundwater level (ft below ground surface) - prior" = "solid",
+                                                     "Water Temperature (C) - prior" = "solid"))
+        ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+        shape_legend <- append(shape_legend, c("Groundwater level (ft below ground surface) - prior" = NA,
+                                               "Water Temperature (C) - prior" = NA))
+      } else {
+        ### Add legend items with colors for data being added to plot in this step
+        cols_legend <- append(cols_legend,c(cols[2]))
+        ### Add the linetype data being added to plot in this step (solid for line, NA for points)
+        linetype_legend <- append(linetype_legend, c("Stage (ft) - prior" = "solid"))
+        ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
+        shape_legend <- append(shape_legend, c("Stage (ft) - prior" = NA))
+        
+        cols_legend <- append(cols_legend,
+                              switch(var2,
+                                     "Temperature" = c(cols[5]),
+                                     "Discharge" = c(cols[8])))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
     linetype_legend <- append(linetype_legend,
                               switch(var2,
@@ -824,8 +850,9 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
                            switch(var2,
                                   "Temperature" = c("Water Temperature (C) - prior" = NA),
                                   "Discharge" = c("Discharge (cfs) - prior" = NA)))
-}
-}
+      }
+    }
+  }
   
   if(!is.null(df_stage) && nrow(df_stage) > 0) {
     plot <- plot +
@@ -834,12 +861,12 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
     ### Add legend items with colors for data being added to plot in this step
     cols_legend <- append(cols_legend,c(cols[3]))
     ### Add the linetype data being added to plot in this step (solid for line, NA for points)
-    linetype_legend <- append(linetype_legend,c("Stage (ft) - manual" = "blank"))
+    linetype_legend <- append(linetype_legend, c("Stage (ft) - manual" = "blank"))
     ### Add the shape of the point being added to the plot in this step (NA for lines, 19 for points)
-    shape_legend <- append(shape_legend,c("Stage (ft) - manual" = 19))
+    shape_legend <- append(shape_legend, c("Stage (ft) - manual" = 19))
   }
   
-  if(!is.null(df_temp) && nrow(df_temp) > 0 && var2=="Temperature") {
+  if(!is.null(df_temp) && nrow(df_temp) > 0 && var2 =="Temperature") {
     plot <- plot +
       geom_point(data = df_temp, aes(x = DateTimeET, y = FinalResult*mult, color = "Water Temperature (C) - manual"), size = 2)
     
@@ -854,11 +881,21 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
   if(loc == "SYW177"){
     plot <- plot +
       scale_y_continuous(breaks = pretty_breaks(), limits = c(1.2 * y1lim, NA), trans = scales::reverse_trans(),
-                         sec.axis = sec_axis(trans = ~./mult,breaks = pretty_breaks(), name = y2lab))
+                         sec.axis = sec_axis(trans = ~./mult, breaks = pretty_breaks(), name = y2lab))
   } else {
-    plot <- plot +
-      scale_y_continuous(breaks = pretty_breaks(), limits = c(NA, 1.2 * y1lim),
-                         sec.axis = sec_axis(trans = ~./mult, breaks = pretty_breaks(), name = y2lab)) 
+    if(loc == "EPW2") {
+      range_temp <-  max(pd$Logger_temp_c) - min(pd$Logger_temp_c)
+      plot <- plot +
+        scale_y_continuous(breaks = pretty_breaks(), limits = c(NA, 500),
+                           sec.axis = sec_axis(trans = ~./mult, breaks = pretty_breaks(), name = y2lab)) 
+                           # sec.axis = sec_axis(trans = ~ range_temp/8*(.-500) + max(pd$Logger_temp_c),
+                           # sec.axis = sec_axis(trans = ~ scales::rescale(., to = range(pd$Logger_temp_c$var_d), 
+                                               # breaks = pretty_breaks(), name = y2lab)) 
+    } else {
+      plot <- plot +
+        scale_y_continuous(breaks = pretty_breaks(), limits = c(NA, 1.2 * y1lim),
+                           sec.axis = sec_axis(trans = ~./mult, breaks = pretty_breaks(), name = y2lab)) 
+    }
   }
   
   plot <- plot + 
@@ -882,7 +919,8 @@ PREVIEW_HOBO <- function(df_hobo, df_prior = NULL, df_stage = NULL, df_temp = NU
   return(plot)
 
 }
-# plot <- PREVIEW_HOBO(df_hobo = df_hobo, df_prior = NULL, var2 = "Discharge")
+# var2 <- "Temperature"
+# plot <- PREVIEW_HOBO(df_hobo = df_hobo, df_prior = NULL, var2 = var2)
 # plot
 # Comment out if running in shiny
 # df_HOBO <- PROCESS_HOBO(hobo_txt_file = hobo_file, stage = stage)

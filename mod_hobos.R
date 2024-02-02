@@ -123,7 +123,6 @@ baro_files <- reactive({
   }
 })
 
-
 observe({
   if(isFALSE(baro_files())) {
     show('stage')
@@ -139,7 +138,6 @@ output$file.UI <- renderUI({
               selected = 1)
 })
 
-
 ### 
 # Update Select Input when a file is imported (actually when the import button is pressed (successful or not))
   # observeEvent(input$import, {
@@ -152,14 +150,23 @@ output$file.UI <- renderUI({
 ### Well File ####  
 well_file <-   reactive({
   req(input$file)
-  length(grep(input$file, pattern = "(SYW177_).*\\.txt$")) 
+  length(grep(input$file, pattern = "(SYW177_).*\\.txt$||(EPW2_).*\\.txt$")) 
 })
-   
+
+wl_label <- reactive({
+  req(well_file())
+  wl_label <- if(well_file() == 0) {
+    "Provide stage (ft) at time of download:"
+  } else {
+    "Provide Water Level Measurement (ft) at time of download:"
+  }
+})   
+
 ### Stage UI ####
 output$stage.UI <- renderUI({
  req(file_type() %in% c("hobo"))
  numericInput(inputId = ns("stage"),
-              label = "Provide stage (ft) at time of download:", value = 0, min = 0, max = 30, step = 0.01, width = "100%")
+              label = wl_label(), value = 0, min = 0, max = 30, step = 0.01, width = "100%")
               
 })
   
@@ -355,7 +362,7 @@ observeEvent(input$refresh, {
 
 dt_colnames <- reactive({
   if( well_file() == 1) {
-    c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Water Level (ft)")
+    c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Water DBGS (ft)", "Water Elevation (ft")
   } else {
     switch(file_type(),
            "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)"),
@@ -380,6 +387,7 @@ output$table_data_preview <- renderDataTable({
   dt$DateTimeUTC <- as.character(format(dt$DateTimeUTC, format = "%Y-%m-%d %H:%M"))
   datatable(dt, 
             colnames = dt_colnames(),
+            rownames = FALSE,
             options = list(pageLength = 50)) #%>% 
     # formatDate(
     #   columns = "DateTimeUTC",
