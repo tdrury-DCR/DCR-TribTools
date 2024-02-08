@@ -150,7 +150,7 @@ output$file.UI <- renderUI({
 ### Well File ####  
 well_file <-   reactive({
   req(input$file)
-  length(grep(input$file, pattern = "(SYW177_).*\\.txt$||(EPW2_).*\\.txt$")) 
+  str_detect(x, pattern = c("SYW177_.*\\.txt", "EPW2_.*\\.txt$")) |> any() 
 })
 
 wl_label <- reactive({
@@ -361,7 +361,7 @@ observeEvent(input$refresh, {
 #### TABLE OUTPUTS ####
 
 dt_colnames <- reactive({
-  if( well_file() == 1) {
+  if(well_file() == 1) {
     c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Water DBGS (ft)", "Water Elevation (ft")
   } else {
     switch(file_type(),
