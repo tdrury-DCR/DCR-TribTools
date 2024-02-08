@@ -231,30 +231,35 @@ PREVIEW_MAYFLY <- function(df_mayfly, df_prior = NULL, df_stage = NULL, df_temp 
     prior <-  TRUE
   }
   
-  y1lim <- if(nrow(df_stage) > 0){
-                  max(c(pd$RawStage_ft,df_stage$FinalResult))
-                    } else {max(pd$RawStage_ft)}
+  y1lim <- if(nrow(df_stage) > 0) {
+    max(c(pd$RawStage_ft, df_stage$FinalResult), na.rm = TRUE)
+  } else {
+    max(pd$RawStage_ft, na.rm = TRUE)
+  }
   
   y2lim <- switch (var2,
-    "Temperature" = if(!is.null(df_temp) && nrow(df_temp) > 0){
-                          max(c(pd$Logger_temp_c,df_temp$FinalResult)) 
-                      } else {max(pd$Logger_temp_c)},
-    "Conductivity" = if(!is.null(df_conductivity) && nrow(df_conductivity) > 0){
-                          max(c(pd$RawConductivity_uScm,df_conductivity$FinalResult))
-                      } else {max(pd$RawConductivity_uScm)}#,
-    # "Discharge" = max(pd$Discharge_cfs)
+                   "Temperature" = if(!is.null(df_temp) && nrow(df_temp) > 0) {
+                     max(c(pd$Logger_temp_c, df_temp$FinalResult), na.rm = TRUE) 
+                   } else {
+                     max(pd$Logger_temp_c)},
+                   "Conductivity" = if(!is.null(df_conductivity) && nrow(df_conductivity) > 0) {
+                     max(c(pd$RawConductivity_uScm, df_conductivity$FinalResult), na.rm = TRUE)
+                   } else {
+                     max(pd$RawConductivity_uScm, na.rm = TRUE)
+                   }
+                   # "Discharge" = max(pd$Discharge_cfs)
   )
   
   y2lab <- switch (var2,
-      "Temperature" = "Temperature (C)",
-      "Conductivity" = "Specific Conductance (uS/cm)"
-      # "Discharge" = "Discharge (cfs)"
+                   "Temperature" = "Temperature (C)",
+                   "Conductivity" = "Specific Conductance (uS/cm)"
+                   # "Discharge" = "Discharge (cfs)"
   )
   
   title <- switch (var2,
-    "Temperature" = paste0("Stage and Water Temperature at Location ", loc),
-    "Conductivity" = paste0("Stage and Specific Conductance at Location ", loc)
-    # "Discharge" = paste0("Stage and Discharge at Location ", loc)
+                   "Temperature" = paste0("Stage and Water Temperature at Location ", loc),
+                   "Conductivity" = paste0("Stage and Specific Conductance at Location ", loc)
+                   # "Discharge" = paste0("Stage and Discharge at Location ", loc)
   )
   
   mult <- y1lim / abs(y2lim)

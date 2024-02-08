@@ -116,14 +116,13 @@ x <- input$file
 ### Check to see if there are any BARO files to be processed
 baro_files <- reactive({
   req(rxvals$files)
-  if(any(str_detect(rxvals$files, pattern = "(_BARO_).*\\.txt$"))){
-    TRUE
-  } else {
-    FALSE
-  }
+  str_detect(rxvals$files, pattern = "(_BARO_).*\\.txt$") %>% any()
 })
 
 observe({
+  print(glue("File selected is {input$file}..."))
+  print(glue("File type is: {file_type()}..."))
+  
   if(isFALSE(baro_files())) {
     show('stage')
   }
@@ -150,11 +149,11 @@ output$file.UI <- renderUI({
 ### Well File ####  
 well_file <-   reactive({
   req(input$file)
-  str_detect(x, pattern = c("SYW177_.*\\.txt", "EPW2_.*\\.txt$")) |> any() 
+  str_detect(input$file, pattern = c("SYW177_.*\\.txt", "EPW2_.*\\.txt$")) %>% any() 
 })
 
 wl_label <- reactive({
-  req(well_file())
+  req(input$file)
   wl_label <- if(well_file() == 0) {
     "Provide stage (ft) at time of download:"
   } else {
@@ -280,9 +279,11 @@ import_status <- reactive({
 df <- reactive({
   dfs()[[1]]
 })
-df_flags <- reactive({
-  dfs()[[2]]
+
+df_flags <- reactive({ # Note - when there is no data the value here is 1
+    dfs()[[2]]
 })
+
 df_prior <- reactive({
   dfs()[[3]]
 })
@@ -399,7 +400,7 @@ output$table_data_preview <- renderDataTable({
 
 ### Processed Flag Table - Only make table if processing is successful
 output$table_flag_preview <- renderDataTable({
-  req(try(df_flags()))
+  req(!df_flags() == 1)
   datatable(df_flags(), options = list(pageLength = 25))
 })
 
