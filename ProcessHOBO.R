@@ -380,7 +380,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   
   if (userlocation == "Wachusett") {
     if(loc %in% c("FHLN", "FPRN", "HLNW", "PRNW")){
-      baro <- "FPRN"
+      baro <- c("FPRN","PRNW")
     } else {
       baro <- c("MD02", "MD83", "MD05")
     }
