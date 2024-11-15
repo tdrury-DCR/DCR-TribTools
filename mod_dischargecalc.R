@@ -95,12 +95,17 @@ DISCHARGE <- function(input, output, session, df_ratings, df_locs, userlocation)
            !MWRA_Loc %in% c("FPRN", "FHLN","MD04","MD69","MD07") ) %>% 
     rename(LocationMWRA = MWRA_Loc)
   
+  if(userlocation == "Wachusett"){
   ### Add full names of locations
   locs <- left_join(rating_locs,df_locs, by="LocationMWRA",)
   
   
   ### Sort locations alphabetically
   locations <- sort(unique(locs$LocationLabel)) 
+  
+  }else{
+    locations <- sort(unique(rating_locs$LocationMWRA))
+  }
   
   ### Site Selection
   site_choices <- reactive({

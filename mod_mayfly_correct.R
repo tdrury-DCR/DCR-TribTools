@@ -115,14 +115,18 @@ MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, userna
   tz <- 'UTC'
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
-  mayfly_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tblMayfly"))
-  hobo_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tbl_HOBO"))
+  mayfly_tbl <- tbl(con, Id(schema = userlocation, table =  "tblMayfly"))
+  hobo_tbl <- tbl(con, Id(schema = userlocation , table =  "tbl_HOBO"))
   
   # short_locs is hard coded to avoid expensive database querying... need to add M110 once online
+  if(userlocation=="Wachusett"){
   short_locs <-  c("MD01", "MD02", "MD03", "MD05", "MD06", "MD83", "M110")
   full_locs <- df_trib_monitoring$Location %>% unique() %>% sort() 
   loc_choices <- full_locs[match(short_locs, substrRight(full_locs, 4))]
-  
+  }else{
+    short_locs <- c("211","GATE")
+    loc_choices <- short_locs
+  }
   # observeEvent(input$par_select, {
   #   print(loc_choices)
   # print(loc_choices)
@@ -374,6 +378,8 @@ MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, userna
   })
   
   ### Get the cleaning dates
+  
+  if(userlocation == "Wachusett"){
   mf_cleanings <- reactive({
     df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
   })
@@ -386,7 +392,19 @@ MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, userna
       mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC))) %>%
       arrange(DateTimeUTC)
   })
-  
+  }else{
+    mf_cleanings <- reactive({
+      df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
+    })
+    
+    cleanings <- reactive({
+      req(loc_selected())
+      mf_cleanings() %>%
+        dplyr::filter(substrRight(Location, 4) == loc_selected()) %>% 
+        rowwise() %>% 
+        arrange(DateTimeUTC)
+    })
+  }
   ### Start Time ####
   # Default value should be the first uncorrected Mayfly stage value
   # Choices should be the manual times + 15 minutes 

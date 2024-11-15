@@ -21,7 +21,13 @@ print(paste0("Mayfly data started processing at ", Sys.time()))
 file <- paste0(mayfly_data_dir,"/", mayfly_file)
 
 loc <- str_split_fixed(mayfly_file, "_", n = 2) 
+
+if(userlocation=="Wachusett"){
 loc <- loc[1] %>% str_replace("WACH-","")
+}else{
+  loc <- loc[1] %>% str_replace("QUAB-","")
+  
+}
 
 df <- read_csv(file, skip = 7, guess_max = 100, ### skip lines to header
                col_types = cols(
@@ -130,6 +136,7 @@ con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connectio
 # con <- dbConnect(odbc::odbc(), database, timezone = 'America/New_York')
 
 ### Bring in stage, temperature, and specific conductance manual measurements
+if(userlocation == "Wachusett"){
 df_stage <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
                                   FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Staff Gauge Height'
                                   AND [Location] = '{loc}'"))
@@ -141,7 +148,19 @@ df_temp  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], 
 df_conductivity  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
                                   FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Specific Conductance'
                                   AND [Location] = '{loc}'"))
-
+}else{
+  df_stage <- dbGetQuery(con, glue("SELECT [Site], [DateTimeET], [Parameter], [FinalResult] 
+                                  FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Staff Gauge Height'
+                                  AND [Site] = '{loc}'"))
+  
+  df_temp  <- dbGetQuery(con, glue("SELECT [Site], [DateTimeET], [Parameter], [FinalResult] 
+                                  FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Water Temperature'
+                                  AND [Site] = '{loc}'"))
+  
+  df_conductivity  <- dbGetQuery(con, glue("SELECT [Site], [DateTimeET], [Parameter], [FinalResult] 
+                                  FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Specific Conductance'
+                                  AND [Site] = '{loc}'"))
+}
 ### Disconnect from db and remove connection obj
 dbDisconnect(con)
 rm(con)
@@ -416,8 +435,12 @@ IMPORT_MAYFLY <- function(df_mayfly, mayfly_file, userlocation){
   file <- paste0(mayfly_data_dir,"/", mayfly_file)
   
   loc <- str_split_fixed(mayfly_file, "_", n = 2) 
+  if(userlocation=="Wachusett"){
   loc <- loc[1] %>% str_replace("WACH-","")
-  
+  }else{
+    loc <- loc[1] %>% str_replace("QUAB-","")
+    
+  }
   mayfly_tbl <- "tblMayfly"
   
   dsn <- 'DCR_DWSP_App_R'
