@@ -77,9 +77,9 @@ MAKE_RATING <- function(tbl_discharges, tbl_ratings, loc, offset1, axes, drop_me
   
 break1 <- ifelse(break1 == 0, NA, break1)  
 break2 <- ifelse(break2 == 0, NA, break2)  
-offset1 <- ifelse(offset1 == 0, NA, offset1)  
-offset2 <- ifelse(offset2 == 0, NA, offset2)  
-offset3 <- ifelse(offset3 == 0, NA, offset3)  
+# offset1 <- ifelse(offset1 == 0, NA, offset1)  ### Making these NA causes the rating curve to fail if PZ is at zero
+# offset2 <- ifelse(offset2 == 0, NA, offset2)  ### Making these NA causes the rating curve to fail if PZ is at zero
+# offset3 <- ifelse(offset3 == 0, NA, offset3)  ### Making these NA causes the rating curve to fail if PZ is at zero
   
 tbl_ratings <- tbl_ratings %>% 
   mutate(RatingDatumOffset = ifelse(is.na(RatingDatumOffset), 0, RatingDatumOffset))
@@ -108,8 +108,8 @@ data1 <- tbl_discharges %>%
 data1$Measurement_Weight <- replace_na(data1$Measurement_Weight, 70)
 data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
 
-if(!is.na(drop_meas)){
-  data1 <- filter(data1, !MeasurementNumber %in% drop_meas)
+if(any(!is.na(drop_meas))){
+  data1 <- filter(data1, !MeasurementNumber %in% c(drop_meas))
 }
 
 apply_offset <- function(.x, .y){
@@ -150,8 +150,12 @@ r_1part <- function(gaugings, offset1){
 ### Part 1 ####  
   # Fitting the power law
   # Note that the start argument requires a list with initial estimates of the coefficients to be estimated
-  power.nls <- nls(discharge1 ~ C * (stage1 - offset1)^n, data = gaugings, start = list(C = 1, n = 2), weights = weight)
+  if(min(stage1) > offset1){
   
+  power.nls <- nls(discharge1 ~ C * (stage1 - offset1)^n, data = gaugings, start = list(C = 1, n = 2), weights = weight)
+  }else{
+    stop("Point of zero flow must be smaller than lowest stage value.")
+  }
   ### Generate confidence intervals from regression ###
   conf_int1 <- confint2(object = power.nls, level = 0.95)
   # Viewing the model summary and accessing estimated constants
@@ -319,6 +323,7 @@ minstage <- offset1
 maxstage <- round(max(gaugings$stage) + 0.25, digits = 1)
 
 stages <- seq(minstage, maxstage, by = 0.02)
+
 
 if(parts == 1){
   break1 <- NA
