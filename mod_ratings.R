@@ -129,7 +129,7 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges) {
   })
   }else{
     site_choices <- reactive({
-      c(df_discharges %>% .$Location) %>%
+      c((df_discharges %>% filter(!Location %in% c("211_USGS"))) %>% .$Location) %>%
         unique() %>%
         sort() %>%
         paste()
