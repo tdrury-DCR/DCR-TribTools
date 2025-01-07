@@ -9,11 +9,11 @@
 
 # HOBO Workflow
 # 1. Collect HOBO data and relaunch in field (ensure logger names are correct, make sure stage values at time collected are noted)
-      # Settings: Computer Timezone should be set to GMT (UTC), units should be in ft/psi
+      # Make sure HOBO and Mayfly data is in UTC timezone, units should be in ft/psi/C
 # 2. Back at the office, transfer all downloaded .hobo files to the unprocessed folder specified in config file
 # 3. Open up the plots for each file (no need to process, or do baro correction) and export each dataset to a txt file output in the unprocessed folder
 # 4. View each file and clean up any stage values or temperatures at the beginning of each file that were messed up due to handling
-# 5. Open the Ratings-HOBO shiny App 
+# 5. Open the TribTools shiny App 
 # 6. You will be forced to process-import any Barometric files before moving on to water level files
 #
 # What the processing function does:
@@ -442,11 +442,11 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     stop("It looks like there is missing barometric compensation data! This needs to be provided or else the discharge calculations will fail.\nSee log file for missing times")
   }
   ### Calculate raw stage
-  df2$raw_stage <- NA ### create empty column
-  df2$raw_stage <- (df2$Logger_psi - df2$Logger_psi_baro) / 0.43352750192825
+  df2$RawStage_ft <- NA ### create empty column
+  df2$RawStage_ft <- (df2$Logger_psi - df2$Logger_psi_baro) / 0.43352750192825
   
   ### get the last raw stage value using the end time
-  last_stage <- df2$raw_stage[df2$DateTimeUTC == end_time]
+  last_stage <- df2$RawStage_ft[df2$DateTimeUTC == end_time]
   
   ### Calculate the stage offset to be applied to each raw stage (stage is a function argument)
   
@@ -457,7 +457,7 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
   }
 
   ### Calculate the final stage using the offset
-  df2$Stage_ft <- round(df2$raw_stage + offset, digits = 3)
+  df2$Stage_ft <- round(df2$RawStage_ft + offset, digits = 3)
   
   ### Source the function to calculate discharges
   # source("HOBO_calcQ.R")
@@ -471,12 +471,14 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
     # print(head(hobo_tbl))
   } else {
     if(loc == "EPW2"){
-      ### Well depth from casing top to bottom = 26.90625, stick-up height (2.20 + WLM calibration adjustment) = 2.00 ft 
+      df2$Stage_ft <- NA_real_
+      ### Stage is meaningless since we don't know the bottom elevation, need to calculate the relative 
+      ending_el_ft <- 500.07 - stage
       df_HOBO <- df2 %>% 
         mutate("RatingFlag" = NA,
                "Discharge_cfs" = NA,
                "Water_DBGS_ft" = NA_real_, # Water level below ground surface
-               "Water_Elevation_ft" = round(500.07 - Stage_ft, 2)) # Water level Elevation ft
+               "Water_Elevation_ft" = round(ending_el_ft - (last_stage - RawStage_ft), 2)) # Water level Elevation ft
       # print(head(hobo_tbl))
     } else {
       ### Calculate all discharges and save df2 to a new df with discharge info
@@ -607,7 +609,6 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
              DateTimeET <= max(df_HOBO$DateTimeUTC)
              )
     
-    
     df_temp  <- dbGetQuery(con, glue("SELECT [Location], [DateTimeET], [Parameter], [FinalResult] 
                                   FROM [{schema}].[tblTribFieldParameters] WHERE [Parameter] = 'Water Temperature'
                                   AND [Location] = '{loc}'"))
@@ -616,8 +617,6 @@ PROCESS_HOBO <- function(hobo_txt_file, stage, username, userlocation){
       filter(DateTimeET >= min(df_HOBO$DateTimeUTC), ### Note - tzs are comparable since stage data is converted to UTC when read into R
              DateTimeET <= max(df_HOBO$DateTimeUTC)
       )
-    
-    
   } else {
     df_stage <-  NULL ### When Quabbin enters manual stage readings, the table name needs to replace NULL
     df_temp <- NULL ### When Quabbin enters manual temperature readings, the table name needs to replace NULL

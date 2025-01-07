@@ -22,17 +22,18 @@ data_correct_summary <- function(parameter) {
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
   db_mayfly <- tbl(con, Id(schema = "Wachusett", table =  "tblMayfly"))
-  
-  if(parameter == "Stage_ft") {
+  # Records where discharge is estimated for data gaps may not have Stage, so discharge must also be empty 
+  # Only pull data for years that have not been fully corrected already (typically year after most recent annual report)
+  if(parameter == "Stage_ft") { 
     df <- db_mayfly %>% 
-      filter(is.na(Stage_ft), DateTimeUTC >= as_datetime("2022-01-01")) %>%
+      filter(is.na(Stage_ft), is.na(Discharge_cfs), DateTimeUTC >= as_datetime("2024-01-01")) %>%
       group_by(Location) %>%
       summarize("MinDateTimeUTC" = min(DateTimeUTC),
                 "MaxDateTimeUTC" = max(DateTimeUTC)) %>% 
       collect()
   } else {
     df <- db_mayfly %>% 
-      filter(is.na(Conductivity_uScm), DateTimeUTC >= as_datetime("2022-01-01")) %>%
+      filter(is.na(Conductivity_uScm), DateTimeUTC >= as_datetime("2024-01-01")) %>%
       group_by(Location) %>%
       summarize("MinDateTimeUTC" = min(DateTimeUTC),
                 "MaxDateTimeUTC" = max(DateTimeUTC)) %>% 

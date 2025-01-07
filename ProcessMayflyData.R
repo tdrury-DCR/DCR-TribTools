@@ -14,7 +14,10 @@
 # stage <- 1.48 ### Enter stage at time of data download (Numeric entry in Shiny App)
 
 PROCESS_MAYFLY <- function(mayfly_file, username, userlocation){
-  
+# This function will calculate raw stage, without offset applied and it will not calculate
+  # final stage or discharge since most sensors will require temperature compensation correction.
+  # This step does not apply the offset because it needs to be applied in tandem with any temp compensation
+    
 print(paste0("Mayfly data started processing at ", Sys.time()))
   
 ### Extract the location information from the Plot Title listed in the file
@@ -36,17 +39,14 @@ df <- read_csv(file, skip = 7, guess_max = 100, ### skip lines to header
 
 names(df) <- c("DateTimeUTC", "RawConductivity_uScm", "RawStage_ft", "Logger_temp_c", "Location","ID")
 ### Note - the time offset is fixed to UTC-5, so add 5 hrs to get back to UTC
-
 ### Format Date-Time stamp - Need two tries here because Excel will mess with date formats 
 if(str_detect(df$DateTimeUTC[1], "/")) {
   print("Dates formatted with slashes")
   df$DateTimeUTC <- mdy_hm(df$DateTimeUTC, tz = "UTC")
-  # df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%m/%d/%y %H:%M", tz = "UTC") 
 } else {
   if(str_detect(df$DateTimeUTC[1], "-")) {
     print("Dates formatted with dashes")
     df$DateTimeUTC <- ymd_hms(df$DateTimeUTC, tz = "UTC")
-    # df$DateTimeUTC <- parse_date_time(df$DateTimeUTC,"%y-%m-%d %H:%M:%S", tz = "UTC")
   }
 }
 
@@ -91,8 +91,9 @@ mayfly_tbl <- "tblMayfly"
 ### Get existing Mayfly data for dup check
 mayfly_existing <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
                                   [Location] = '{loc}'"))
+
 ### Check for duplicate existing data in database
-duplicates <- semi_join(df, mayfly_existing, by="DateTimeUTC")
+duplicates <- semi_join(df, mayfly_existing, by = "DateTimeUTC")
 
 if (nrow(duplicates) > 0){
   stop(paste0("This file duplicates ",nrow(duplicates)," existing ",loc," Mayfly records in the database."))
@@ -147,39 +148,34 @@ dbDisconnect(con)
 rm(con)
 
 ###  Filter to the date range of the HOBO data being imported
+### Note - tzs are comparable since stage data is converted to UTC when read into R
+
 df_stage <- df_stage %>% 
-  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), 
          DateTimeET <= max(df$DateTimeUTC) + hours(2))
 
 df_temp <- df_temp %>% 
-  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), 
          DateTimeET <= max(df$DateTimeUTC) + hours(2))
 
 df_conductivity <- df_conductivity %>% 
-  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), ### Note - tzs are comparable since stage data is converted to UTC when read into R
+  filter(DateTimeET >= min(df$DateTimeUTC) - hours(2), 
          DateTimeET <= max(df$DateTimeUTC) + hours(2))
 
 ### df_prior ####
-
 ### Grab last 1 days records to plot with new data to check for missed data corrections
 t <- min(df$DateTimeUTC)
 
-tz <- 'UTC'
-con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
-
-mayfly_prior <- dbGetQuery(con, glue("SELECT * FROM [{schema}].[{mayfly_tbl}] WHERE 
-                                  [Location] = '{loc}'"))
+# tz <- 'UTC'
+# con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
 # hobo_prior$DateTimeUTC <-  force_tz(hobo_prior$DateTimeUTC, tzone = "UTC") 
-mayfly_prior <- filter(mayfly_prior, Location == loc, DateTimeUTC >= (t - 86400), DateTimeUTC < t)
+mayfly_prior <- filter(mayfly_existing, Location == loc, DateTimeUTC >= (t - 86400), DateTimeUTC < t)
+
+col_order <- names(mayfly_existing)
 
 ### Reorder columns to match db
-col_order <- c(dbListFields(con, schema_name = schema, name = mayfly_tbl))
 df <-  df[col_order]
-
-### Disconnect from db and remove connection obj
-dbDisconnect(con)
-rm(con)
 
 dfs <- list(
   "df" = df,

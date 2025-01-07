@@ -163,7 +163,7 @@ wl_label <- reactive({
 
 ### Stage UI ####
 output$stage.UI <- renderUI({
- req(file_type() %in% c("hobo"))
+ req(file_type() %in% c("hobo", "mayfly"))
  numericInput(inputId = ns("stage"),
               label = wl_label(), value = 0, min = 0, max = 30, step = 0.01, width = "100%")
               
@@ -211,7 +211,7 @@ dfs <- eventReactive(input$process,{
   switch(file_type(),
          "baro" = {PROCESS_BARO(baro_file = input$file, userlocation = userlocation)},
          "hobo" = {PROCESS_HOBO(hobo_txt_file = input$file, stage = input$stage, username = username, userlocation = userlocation)},
-         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, username = username, userlocation = userlocation)}
+         "mayfly" = {PROCESS_MAYFLY(mayfly_file = input$file, stage = input$stage, username = username, userlocation = userlocation)}
   )
 })
 
@@ -279,11 +279,9 @@ import_status <- reactive({
 df <- reactive({
   dfs()[[1]]
 })
-
 df_flags <- reactive({ # Note - when there is no data the value here is 1
     dfs()[[2]]
 })
-
 df_prior <- reactive({
   dfs()[[3]]
 })
@@ -367,8 +365,8 @@ dt_colnames <- reactive({
   } else {
     switch(file_type(),
            "baro" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)"),
-           "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Stage (ft)", "Discharge (cfs)"),
-           "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "RawStage (ft)", "RawConductivity (uS/cm)")
+           "hobo" = c("ID", "Location", "Date-Time (UTC)", "Logger PSI", "Logger Temp (C)", "Raw Stage (ft)" ,"Stage (ft)", "Discharge (cfs)"),
+           "mayfly" = c("ID", "Location", "Date-Time (UTC)", "Logger Temp (C)", "RawStage (ft)", "Stage (ft)", "RawConductivity (uS/cm)")
     )
   }
 })
@@ -380,7 +378,7 @@ dt_colnames <- reactive({
 output$table_data_preview <- renderDataTable({
   req(try(df()))
   dt <- if(file_type() == "mayfly") {
-    df()[ , c(1:5,8)]
+    df()[ , c(1:6,8)]
   } else {
     df()
   }
