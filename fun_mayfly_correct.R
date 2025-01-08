@@ -101,7 +101,7 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
            between(DateTimeUTC, min_dt - hours(3), max_dt + hours(3)))
 
   manual_stage_times <- df_fp2 %>% 
-    pluck(DateTimeUTC)
+    pluck("DateTimeUTC")
   
   # manual_stage_times
   
