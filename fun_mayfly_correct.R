@@ -21,22 +21,23 @@ data_correct_summary <- function(parameter) {
   tz <- 'UTC'
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
-  db_mayfly <- tbl(con, Id(schema = "Wachusett", table =  "tblMayfly"))
+
+  db_mayfly <- tbl(con, Id(schema = userlocation, table =  "tblMayfly"))
   # Records where discharge is estimated for data gaps may not have Stage, so discharge must also be empty 
   # Only pull data for years that have not been fully corrected already (typically year after most recent annual report)
   if(parameter == "Stage_ft") { 
     df <- db_mayfly %>% 
       filter(is.na(Stage_ft), is.na(Discharge_cfs), DateTimeUTC >= as_datetime("2024-01-01")) %>%
       group_by(Location) %>%
-      summarize("MinDateTimeUTC" = min(DateTimeUTC),
-                "MaxDateTimeUTC" = max(DateTimeUTC)) %>% 
+      summarize("MinDateTimeUTC" = min(DateTimeUTC, na.rm = TRUE),
+                "MaxDateTimeUTC" = max(DateTimeUTC, na.rm = TRUE)) %>% 
       collect()
   } else {
     df <- db_mayfly %>% 
       filter(is.na(Conductivity_uScm), DateTimeUTC >= as_datetime("2024-01-01")) %>%
       group_by(Location) %>%
-      summarize("MinDateTimeUTC" = min(DateTimeUTC),
-                "MaxDateTimeUTC" = max(DateTimeUTC)) %>% 
+      summarize("MinDateTimeUTC" = min(DateTimeUTC, na.rm = TRUE),
+                "MaxDateTimeUTC" = max(DateTimeUTC, na.rm = TRUE)) %>% 
       collect()
   }
   
@@ -63,8 +64,8 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
   tz <- 'UTC'
   con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
   
-  mayfly_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tblMayfly"))
-  hobo_tbl <- tbl(con, Id(schema = "Wachusett", table =  "tbl_HOBO"))
+  mayfly_tbl <- tbl(con, Id(schema = userlocation, table =  "tblMayfly"))
+  hobo_tbl <- tbl(con, Id(schema = userlocation, table =  "tbl_HOBO"))
  
    ###  FILTER DATA  ####
   
@@ -75,11 +76,19 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
   min_dt <- as.POSIXct(sum_loc$MinDateTimeUTC, tz = "UTC")
   max_dt<- as.POSIXct(sum_loc$MaxDateTimeUTC, tz = "UTC")  
   
+  if(userlocation == "Wachusett"){
   df_hobo <- hobo_tbl %>% 
     filter(between(DateTimeUTC, min_dt, max_dt),
            Location == loc) %>% 
     select(2,3,6,7) %>% 
     collect()
+  } else {
+    df_hobo <- hobo_tbl %>% 
+      filter(between(DateTimeUTC, min_dt, max_dt),
+             Location == loc) %>% 
+      select(2,3,4,6) %>% 
+      collect()
+  }
   
   df_mayfly <- mayfly_tbl %>% 
     filter(Location == loc, between(DateTimeUTC, min_dt, max_dt)) %>% 
@@ -90,9 +99,9 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
     filter(Location == loc,
            Parameter == ifelse(par == "Stage_ft", "Staff Gauge Height", "Specific Conductance"),
            between(DateTimeUTC, min_dt - hours(3), max_dt + hours(3)))
-  
+
   manual_stage_times <- df_fp2 %>% 
-    use_series(DateTimeUTC)
+    pluck(DateTimeUTC)
   
   # manual_stage_times
   
@@ -137,6 +146,7 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
     names(dg) <- c("DateTimeUTC", "Raw_Conductivity", "YSI_Conductivity")
     
     ### Get the cleaning dates
+    if(userlocation == "Wachusett"){
     cleanings <- df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
     
     cleanings <- cleanings %>% 
@@ -145,7 +155,14 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
       mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC)))# %>%
       # select(c(3,10,28)) %>% 
       # arrange(DateTimeUTC)
-
+    }else{
+      cleanings <- df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
+      
+      cleanings <- cleanings %>%
+        dplyr::filter(substrRight(Location, 4) == loc) %>% 
+          rowwise()
+    }
+    
     ### Join in the flag data so estimated values can be a different series
     p  <- xts(dg, order.by = dg$DateTimeUTC, tzone = "UTC")
     # x_label <- strftime(p$DateTimeUTC,format = "%B-%m \n%Y")
@@ -400,13 +417,19 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   ### Get the cleaning dates
   cleanings <- df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
   
+  if(userlocation == "Wachusett"){
   cleanings <- cleanings %>% 
     dplyr::filter(substrRight(Location, 4) == loc) %>% 
     rowwise() %>% 
     mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC)))# %>%
     # select(c(3,10,28)) %>% 
     # arrange(DateTimeUTC)
-
+  }else{
+    cleanings <- cleanings %>% 
+      dplyr::filter(substrRight(Location, 4) == loc) %>% 
+      rowwise()
+  }
+  
   plot <- dygraph(p[,-1], main = glue("Mayfly Corrected Specific Conductance at {loc}")) %>%
     dyOptions(useDataTimezone = TRUE, axisLineWidth = 1.5, fillGraph = FALSE, pointSize = 3, colors = aes_colors) %>%
     dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 1, hideOnMouseOut = FALSE)  %>%
