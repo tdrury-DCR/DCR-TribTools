@@ -10,10 +10,16 @@
 
 ### UI #### 
 
+if(exists("rportable_library")){
+  r_lib <- .libPaths()[1]
+} else {
+  r_lib <- config[["R_lib_Path"]]
+}
+
 ipak <- function(pkg){
-  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  new.pkg <- pkg[!(pkg %in% installed.packages(lib.loc = r_lib)[, "Package"])]
   if (length(new.pkg))
-    install.packages(new.pkg, dependencies = TRUE, repos="https://cloud.r-project.org", quiet = T, verbose = F)
+    install.packages(new.pkg, lib = r_lib, dependencies = TRUE, repos = "https://cloud.r-project.org")
   sapply(pkg, require, character.only = TRUE)
 }
 ### Package List ####
