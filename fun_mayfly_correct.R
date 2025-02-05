@@ -34,7 +34,7 @@ data_correct_summary <- function(parameter) {
       collect()
   } else {
     df <- db_mayfly %>% 
-      filter(is.na(Conductivity_uScm), DateTimeUTC >= as_datetime("2024-01-01")) %>%
+      filter(is.na(Conductivity_uScm), !is.na(RawConductivity_uScm), DateTimeUTC >= as_datetime("2024-01-01")) %>%
       group_by(Location) %>%
       summarize("MinDateTimeUTC" = min(DateTimeUTC, na.rm = TRUE),
                 "MaxDateTimeUTC" = max(DateTimeUTC, na.rm = TRUE)) %>% 
