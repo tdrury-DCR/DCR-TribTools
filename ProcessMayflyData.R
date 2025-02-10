@@ -9,7 +9,7 @@
 
 
 # mayfly_files <- list.files(paste0(wach_team_root, config[["Mayfly_Staging"]])) %>% print()
-# mayfly_file <- mayfly_files[1]
+# mayfly_file <- mayfly_files[3]
 # username <- "Dan Crocker"
 # stage <- 1.48 ### Enter stage at time of data download (Numeric entry in Shiny App)
 
@@ -52,7 +52,7 @@ if(str_detect(df$DateTimeUTC[1], "/")) {
 } else {
   if(str_detect(df$DateTimeUTC[1], "-")) {
     print("Dates formatted with dashes")
-    df$DateTimeUTC <- ymd_hms(df$DateTimeUTC, tz = "UTC")
+    df$DateTimeUTC <- as_datetime(df$DateTimeUTC, tz = "UTC")
   }
 }
 
