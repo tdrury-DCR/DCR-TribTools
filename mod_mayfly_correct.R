@@ -74,7 +74,6 @@ MF_CORRECT_UI <- function(id) {
 ################################.
 
 MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, username, userlocation) {  # Same as rating info - all in Hydro DB
-  
 ########################################################################.
 ###               STAGE AND CONDUCTIVITY COMPONENTS                ####
 ########################################################################.
@@ -113,13 +112,17 @@ MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, userna
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
   tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  tz_out <- tz
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz, timezone_out = tz_out)
   
   mayfly_tbl <- tbl(con, Id(schema = userlocation, table =  "tblMayfly"))
   hobo_tbl <- tbl(con, Id(schema = userlocation , table =  "tbl_HOBO"))
   
+  # dbDisconnect(con)
+  # rm(con)
+  
   # short_locs is hard coded to avoid expensive database querying... need to add M110 once online
-  if(userlocation=="Wachusett"){
+  if(userlocation == "Wachusett"){
   short_locs <-  c("MD01", "MD02", "MD03", "MD05", "MD06", "MD83", "M110")
   full_locs <- df_trib_monitoring$Location %>% unique() %>% sort() 
   loc_choices <- full_locs[match(short_locs, substrRight(full_locs, 4))]
@@ -389,7 +392,7 @@ MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, userna
     mf_cleanings() %>%
       dplyr::filter(substrRight(Location, 4) == loc_selected()) %>% 
       rowwise() %>% 
-      mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC))) %>%
+      mutate(DateTimeUTC = with_tz(Mayfly_DownloadDateTimeET, tzone = "UTC")) %>%
       arrange(DateTimeUTC)
   })
   }else{

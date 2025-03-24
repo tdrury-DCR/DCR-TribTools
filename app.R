@@ -8,18 +8,24 @@
 #  File Dependencies: Hobo_Rating_Configs.csv, LaunchTribTOOLS.R
 ##############################################################################.
 
-### UI #### 
+### edit r environmental variables to avoid hardcoding UN and PW
+# Uncomment the line below to add ARCGIS_USER and ARCGIS_PASSWORD to your system variable list
+# usethis::edit_r_environ()
+# Use this format: Variable = Value
+# Note: The above text do not have quotes, however when you use them below in the token, you do use quotes.
 
-if(exists("rportable_library")){
-  r_lib <- .libPaths()[1]
-} else {
-  r_lib <- config[["R_lib_Path"]]
-}
+### LOAD CONFIGS FOR WAVE-WIT APPS ####
+username <- Sys.getenv('USERNAME')
+eq_team_root <- paste0('C:/Users/',username,'/Commonwealth of Massachusetts/DCR-TEAMS-DWSPEQ - Documents/')
 
+# Function to load packages, and install if missing
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages(lib.loc = r_lib)[, "Package"])]
   if (length(new.pkg))
-    install.packages(new.pkg, lib = r_lib, dependencies = TRUE, repos = "https://cloud.r-project.org")
+      install.packages(new.pkg, lib = r_lib, dependencies = TRUE, repos = "https://cloud.r-project.org")
+  si <- sessionInfo()
+  loaded_pkgs <- names(si[["otherPkgs"]])
+  pkg <- pkg[!pkg %in% loaded_pkgs]  
   sapply(pkg, require, character.only = TRUE)
 }
 ### Package List ####
@@ -51,11 +57,10 @@ if (userlocation == "Wachusett") {
 } else {
   rootdir <- quab_team_root
 }
-  userdir <- user_root
 
 #Set user info
 user <-  Sys.getenv("USERNAME") %>% toupper()
-userdata <- readxl::read_xlsx(path = paste0(user_root, config[["Users"]]))
+userdata <- readxl::read_xlsx(path = paste0(eq_team_root, config[["Users"]]))
 userdata <- userdata[toupper(userdata$Username) %in% user,]
 username <<- paste(userdata[2], userdata[1], sep = " ")
 userlocation <<- paste0(userdata[6])
@@ -66,13 +71,13 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
 
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
-  tz <- 'UTC'
-  con <<- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  tz <- 'America/New_York'
+  tz_out <- tz
+  con <<- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz, timezone_out =  tz_out)
 
-  ### DISCHARGE CALCULATOR Args
+    ### DISCHARGE CALCULATOR Args
   location_table <- config[["LocationsTable"]]
   df_locs <- dbReadTable(con, Id(schema = schema, table = location_table))
-  
   
   ### RATING TOOL Function Args
   measurement_data <- config[["DischargeTable"]] ### Set the table name with discharges
@@ -87,28 +92,20 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   
   df_trib_monitoring <- df_trib_monitoring %>%
     dplyr::arrange(desc(FieldObsDate))
-  
-  # db_hobo <- tbl(con, Id(schema = schema, table = "tbl_HOBO"))
-  # db_hobo <- db_hobo %>% collect()
-  # 
-  # db_mayfly <- tbl(con, Id(schema = schema, table =  "tblMayfly"))
-  # db_mayfly <- db_mayfly %>% collect()
 
   db_fp <- tbl(con, Id(schema = schema, table = "tblTribFieldParameters"))
   df_fp <- db_fp %>%
-    filter(Parameter %in% c("Staff Gauge Height", "Specific Conductance")) %>%
+    filter(DateTimeET > as_date("2024-01-01"),
+           Parameter %in% c("Staff Gauge Height", "Specific Conductance")) %>%
     select(3:7) %>%
     collect()
 
   dbDisconnect(con)
   rm(con)
 
-  # First force the tz attribute to reflect the timezone that the data appears in
-  df_fp$DateTimeET <- force_tz(df_fp$DateTimeET, tz = "America/New_York")
   # Then convert time tz and the format into UTC
-  df_fp$DateTimeET <- with_tz(df_fp$DateTimeET, tz = "UTC")
-  df_fp <- df_fp %>%
-    dplyr::rename(DateTimeUTC = DateTimeET)
+  df_fp <- df_fp |> 
+    mutate("DateTimeUTC" = with_tz(df_fp$DateTimeET, tz = "UTC"))
   
   ### HOBO TOOL Function Args
   hobo_path <<- paste0(rootdir, config[["HOBO_Imported"]])
@@ -137,7 +134,6 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
   source("mod_dischargecalc.R")
   ### UI  ####
   ### font-family: 'Lobster', cursive;
-  
   # shinythemes::themeSelector(),
   ui <-  navbarPage(
     "DCR-DWSP TRIB TOOLS",
@@ -163,7 +159,6 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
                        DISCHARGECALC_UI("mod_dischargecalc"))
     )
     
-    
   ) ### END UI ####
   
   ### SERVER  ####
@@ -187,10 +182,6 @@ if (userlocation == "Wachusett") { ### WACHUSETT ####
 } else { ### QUABBIN ####
  
   ### Connect to the DWSP database in SQL Server 
-  # schema <- "Quabbin"
-  # database <- "DCR_DWSP" 
-  # con <- dbConnect(odbc::odbc(), database, timezone = 'UTC')
-  
   database <- config[["HOBO_DB"]]
   ### Connect to Database #1
   ### Connect to the DWSP database in SQL Server

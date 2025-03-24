@@ -18,10 +18,10 @@
 data_correct_summary <- function(parameter) {
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
-  tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  tz <- "UTC"
+  tz_out <- "UTC"
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz, timezone_out = tz_out)
   
-
   db_mayfly <- tbl(con, Id(schema = userlocation, table =  "tblMayfly"))
   # Records where discharge is estimated for data gaps may not have Stage, so discharge must also be empty 
   # Only pull data for years that have not been fully corrected already (typically year after most recent annual report)
@@ -50,9 +50,12 @@ data_correct_summary <- function(parameter) {
   rm(con)
   return(summary)
 }
-# parameter <- "Stage_ft"
-# parameter <- "Conductivity_uScm"
-# data_correct_summary(parameter)
+        #* TESTING DATA_CORRECT_SUMMARY ----
+        # parameter <- "Stage_ft"
+        # parameter <- "Conductivity_uScm"
+        # data_correct_summary(parameter)
+        ### END TESTING - COMMENT OUT ABOVE WHEN DONE 
+        
 ########################################################################.
 ###                          PREVIEW PLOT                          ####
 ########################################################################.
@@ -61,8 +64,9 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
   
   dsn <- 'DCR_DWSP_App_R'
   database <- "DCR_DWSP"
-  tz <- 'UTC'
-  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz)
+  tz <- "UTC"
+  tz_out <- "UTC"
+  con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz, timezone_out = tz_out)
   
   mayfly_tbl <- tbl(con, Id(schema = userlocation, table =  "tblMayfly"))
   hobo_tbl <- tbl(con, Id(schema = userlocation, table =  "tbl_HOBO"))
@@ -155,7 +159,7 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
       mutate(DateTimeUTC = as_datetime(if(is.na(Mayfly_DownloadTimeUTC)) paste0(FieldObsDate, " ", HOBO_DownloadTimeUTC) else paste0(FieldObsDate, " ", Mayfly_DownloadTimeUTC)))# %>%
       # select(c(3,10,28)) %>% 
       # arrange(DateTimeUTC)
-    }else{
+    } else {
       cleanings <- df_trib_monitoring[which(df_trib_monitoring$Mayfly_Cleaned),]
       
       cleanings <- cleanings %>%
@@ -180,47 +184,62 @@ preview_plot <- function(loc, par, sum_loc, df_fp, df_trib_monitoring) {
   return(plot)
 }
 
-### Manual Testing - DOES NOT PLOT
-# loc <-  "MD01"
-# # par <-  "Stage_ft"
-# par <- "Conductivity_uScm"
-# 
-# if(par == "Stage_ft") {
-#   parameter <- "Staff Gauge Height"
-# } else {
-#   parameter <- "Specific Conductance"
-# }
-# model_start_time <- as_datetime("2022-11-01 15:30:00")
-# model_end_time <-   as_datetime("2023-01-10 14:45:00")
-# 
-# df_hobo = db_hobo %>%
-#   filter(Location == loc) %>%
-#   select(3,6)
-# 
-# df <- db_mayfly %>%
-#   select(c(2:6)) %>%
-#   filter(Location == loc,
-#          between(DateTimeUTC, model_start_time, model_end_time))
-# 
-# coeff_a <- 0.11
-# mult <- 0.33
-# pow <- 1.12
-# stage_target <- 1.8
-# final_offset <-  0
-# 
-# df_fp2 <- df_fp %>%
-#   filter(Location == loc,
-#          Parameter == parameter,
-#          between(DateTimeUTC, model_start_time, model_end_time))
-# 
-# sum_loc <- data_correct_summary(parameter = par) %>% filter(Location == substrRight(loc,4))
-# preview_plot(loc = loc, par = par, sum_loc, df_mayfly = db_mayfly, df_hobo = db_hobo, df_fp2, df_trib_monitoring = df_trib_monitoring)
-# 
+        #* TESTING PREVIEW PLOT ----
+        # loc <- "MD05"
+        # sum_loc <- data_correct_summary(parameter = par) %>% filter(Location == substrRight(loc,4))
+        # preview_plot(loc = loc, par = par, sum_loc, df_fp = df_fp, df_trib_monitoring = df_trib_monitoring)
+        ###
 
 ########################################################################.
-###                          STAGE CORRECTION                  ####
+###                          STAGE CORRECTION                       ####
 ########################################################################.
-
+        
+        #* TESTING MF_STAGE_CORRECT ----
+        # dsn <- 'DCR_DWSP_App_R'
+        # database <- "DCR_DWSP"
+        # tz <- "UTC"
+        # tz_out <- "UTC"
+        # con <- dbConnect(odbc::odbc(), dsn = dsn, uid = dsn, pwd = config[["DB Connection PW"]], timezone = tz, timezone_out = tz_out)
+        # 
+        # db_hobo <- tbl(con, Id(schema = schema, table = "tbl_HOBO"))
+        # db_mayfly <- tbl(con, Id(schema = schema, table =  "tblMayfly"))
+        # par <-  "Stage_ft"
+        # # par <- "Conductivity_uScm"
+        #  
+        # if(par == "Stage_ft") {
+        #   parameter <- "Staff Gauge Height"
+        # } else {
+        #   parameter <- "Specific Conductance"
+        # }
+        # model_start_time <- as_datetime("2024-12-10 15:30:00")
+        # model_end_time <-   as_datetime("2024-12-17 14:45:00")
+        # 
+        # df <- db_mayfly %>%
+        #   select(c(2:7)) %>%
+        #   filter(Location == loc,
+        #          between(DateTimeUTC, model_start_time, model_end_time)) |> 
+        #   collect()
+        # 
+        # df_hobo = db_hobo %>%
+        #   filter(Location == loc,
+        #          between(DateTimeUTC, model_start_time, model_end_time)) %>%
+        #   select(3,7) |> 
+        #   collect()
+        # 
+        # df_fp <- df_fp # Loaded in app.r
+        # coeff_a <- 0.11
+        # mult <- 0.33
+        # pow <- 1.12
+        # stage_target <- 0.41
+        # drift <- 0
+        # final_offset <-  0
+        # dfs <- MF_STAGE_CORRECT(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target, drift, final_offset)
+        # ### Table
+        # dfs[[1]]
+        # ### plot
+        # dfs[[2]]
+        ### END TESTING - COMMENT OUT ABOVE WHEN DONE 
+        
 MF_STAGE_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_target, drift, final_offset) {
 
   ### Get loc
@@ -234,7 +253,7 @@ MF_STAGE_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_targe
   
   ### Apply a fouling offset, where correction is pro-rated over time so that correction matches first record to stage at download
   
-  drift_corr <- seq((drift/nrow(df_mayfly_corrected)), drift, by=(drift/nrow(df_mayfly_corrected)))
+  drift_corr <- seq((drift/nrow(df_mayfly_corrected)), drift, by = (drift/nrow(df_mayfly_corrected)))
   df_mayfly_corrected$Stage_ft <- df_mayfly_corrected$Stage_ft - drift_corr
   
   names(df_hobo) <- c("DateTimeUTC", "HOBO")
@@ -272,16 +291,6 @@ MF_STAGE_CORRECT <- function(df, df_hobo, df_fp, coeff_a, mult, pow, stage_targe
   )
   return(dfs)
 }
-
-### Run temp correction function
-# dfs <- MF_STAGE_CORRECT(df = df, 
-#                        df_hobo = df_hobo, 
-#                        df_fp = df_fp, 
-#                        coeff_a = coeff_a, 
-#                        pow = pow, 
-#                        mult = mult, 
-#                        stage_target = stage_target, 
-#                        final_offset = final_offset)
 
 ########################################################################.
 ###                       PROCESS CORRECTED DATA                    ####
@@ -362,6 +371,34 @@ return(dfs)
 ########################################################################.
 ###                 SPECIFIC CONDUCTANCE CORRECTION                 ####
 ########################################################################.
+
+          ### Manual Testing - DOES NOT PLOT
+          
+          # loc <-  "MD01"
+          # model_start_time <- as_datetime("2021-12-15 19:30:00")
+          # model_end_time <-   as_datetime("2022-01-06 20:20:00")
+          # df <- db_mayfly %>%
+          #   select(c(2,3,8)) %>%
+          #   filter(Location == loc,
+          #          between(DateTimeUTC, model_start_time, model_end_time))
+          # 
+          # df_fp_model <- df_fp %>%
+          #   filter(Location == loc,
+          #          Parameter == "Specific Conductance",
+          #          between(DateTimeUTC, model_start_time, model_end_time))
+          # 
+          # drift <- 0
+          # start <- 234.3
+          # end <-  228.7
+          # meter_pre <- 0
+          # meter_post <- 0
+          # final_offset <- 0
+          
+          # 
+          # MF_COND_CORRECT(df = df, df_fp = df_fp_model , df_trib_monitoring = df_trib_monitoring,
+          #                   drift = drift, start = start, end = end, meter_pre = meter_pre, meter_post = meter_post, final_offset = final_offset)
+          ### END TESTING - COMMENT OUT ABOVE WHEN DONE 
+
 
 MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, end, meter_pre, meter_post, final_offset) {
   # Notes: 
@@ -445,33 +482,6 @@ MF_COND_CORRECT <- function(df, df_fp_model, df_trib_monitoring, drift, start, e
   )
   return(dfs)
 }
-
-### Manual Testing - DOES NOT PLOT
-
-# MF_COND_CORRECT <- function(df, df_fp, df_trib_monitoring, drift, start, end, meter_pre, meter_post, final_offset) {
-# loc <-  "MD01"
-# model_start_time <- as_datetime("2021-12-15 19:30:00")
-# model_end_time <-   as_datetime("2022-01-06 20:20:00")
-# df <- db_mayfly %>%
-#   select(c(2,3,8)) %>%
-#   filter(Location == loc,
-#          between(DateTimeUTC, model_start_time, model_end_time))
-# 
-# df_fp_model <- df_fp %>%
-#   filter(Location == loc,
-#          Parameter == "Specific Conductance",
-#          between(DateTimeUTC, model_start_time, model_end_time))
-# 
-# drift <- 0
-# start <- 234.3
-# end <-  228.7
-# meter_pre <- 0
-# meter_post <- 0
-# final_offset <- 0
-
-# 
-# MF_COND_CORRECT(df = df, df_fp = df_fp_model , df_trib_monitoring = df_trib_monitoring,
-#                   drift = drift, start = start, end = end, meter_pre = meter_pre, meter_post = meter_post, final_offset = final_offset)
 
 PROCESS_CORRECTED_COND <- function(df_mayfly, df_corrected, username, userlocation) {
   
