@@ -636,7 +636,7 @@ MF_CORRECT <- function(input, output, session, df_fp, df_trib_monitoring, userna
                               df_hobo = hobo_tbl %>% 
                                 filter(Location == loc,
                                        between(DateTimeUTC, mst, met)) %>% 
-                                select(3,6) %>% 
+                                select(c("DateTimeUTC", "Stage_ft")) %>% 
                                 collect(),
                               df_fp =  df_fp_model(),
                               coeff_a = input$main_mult, 
