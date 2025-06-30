@@ -123,9 +123,10 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges) {
   ### Site Selection
   if(userlocation == "Wachusett"){
     site_choices <- reactive({
-    c(df_discharges %>% .$Location)  %>% 
-      unique()  %>%   
-      sort()  %>% 
+      df_discharges %>% 
+      pull(Location)  %>% 
+      unique() %>%   
+      sort() %>% 
       paste()
   })
   }else{
