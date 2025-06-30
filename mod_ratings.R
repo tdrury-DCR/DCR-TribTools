@@ -123,8 +123,9 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges) {
   ### Site Selection
   if(userlocation == "Wachusett"){
     site_choices <- reactive({
-    c("HOLDEN FORESTRY WEIR - HLNW", df_discharges %>% .$Location) %>%
-      sort() %>%
+    c(df_discharges %>% .$Location)  %>% 
+      unique()  %>%   
+      sort()  %>% 
       paste()
   })
   }else{
