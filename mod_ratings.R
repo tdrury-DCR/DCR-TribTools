@@ -147,8 +147,8 @@ RATINGS <- function(input, output, session, df_ratings, df_discharges) {
 
   output$pzf_current <- renderText({
     req(input$site != "Choose Location")
-    current_offset <- df_ratings$a1[df_ratings$MWRA_Loc == input$site & df_ratings$IsCurrent == TRUE]
-    min_stage <- df_ratings$MinStage[df_ratings$MWRA_Loc == input$site & df_ratings$IsCurrent == TRUE]
+    current_offset <- df_ratings$a1[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$IsCurrent == TRUE]
+    min_stage <- df_ratings$MinStage[df_ratings$MWRA_Loc == substrRight(input$site, 4) & df_ratings$IsCurrent == TRUE]
     if (!is.na(current_offset)) {
       paste0("The PZF for the current rating at the selected site (", input$site, ") is: ", current_offset, " ft")
     } else {
