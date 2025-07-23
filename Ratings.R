@@ -108,6 +108,11 @@ data1 <- tbl_discharges %>%
 data1$Measurement_Weight <- replace_na(data1$Measurement_Weight, 70)
 data1$Measurement_Rated <- replace_na(data1$Measurement_Rated, "NA")
 
+#Remove any rating Rated "Poor"
+data1 <- data1 |> 
+  filter(Measurement_Weight > 0)
+
+# Remove measurements to be excluded from rating development
 if(any(!is.na(drop_meas))){
   data1 <- filter(data1, !MeasurementNumber %in% c(drop_meas))
 }
